@@ -18,7 +18,6 @@ describe('GET /health', () => {
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('healthy');
     expect(res.body.timestamp).toBeDefined();
-    // should be a valid ISO date string
     expect(new Date(res.body.timestamp).toString()).not.toBe('Invalid Date');
   });
 });
@@ -57,5 +56,32 @@ describe('Cross-check: response shape', () => {
     const res = await request(app).get('/health');
     expect(res.body).toHaveProperty('status');
     expect(res.body).toHaveProperty('timestamp');
+  });
+});
+
+// ── API Validation Error Tests ────────────────────────────────────────
+describe('POS API Validation Checks', () => {
+  it('POST /api/tenants requires name', async () => {
+    const res = await request(app).post('/api/tenants').send({});
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Tenant name is required');
+  });
+
+  it('POST /api/products requires tenantId, name, priceCents', async () => {
+    const res = await request(app).post('/api/products').send({ name: 'Coffee' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('tenantId, name, and priceCents are required');
+  });
+
+  it('POST /api/tables requires tenantId, name, token', async () => {
+    const res = await request(app).post('/api/tables').send({ tenantId: 1, name: 'T1' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('tenantId, name, and token are required');
+  });
+
+  it('POST /api/orders requires tenantId', async () => {
+    const res = await request(app).post('/api/orders').send({});
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('tenantId is required');
   });
 });
