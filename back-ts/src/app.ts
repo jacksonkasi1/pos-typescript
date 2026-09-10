@@ -41,13 +41,41 @@ app.post('/api/tenants', async (req: Request, res: Response) => {
   try {
     const { db } = await import('./db/index');
     const { tenants } = await import('./db/schema');
-    const { name, businessType, currencyCode } = req.body;
+    const {
+      name,
+      businessType,
+      description,
+      phone,
+      whatsapp,
+      email,
+      address,
+      website,
+      taxId,
+      currencyCode,
+      currency,
+      immediatePaymentRequired,
+    } = req.body;
+
     if (!name) {
       return res.status(400).json({ error: 'Tenant name is required' });
     }
+
     const [inserted] = await db
       .insert(tenants)
-      .values({ name, businessType, currencyCode: currencyCode || 'EUR' })
+      .values({
+        name,
+        businessType,
+        description,
+        phone,
+        whatsapp,
+        email,
+        address,
+        website,
+        taxId,
+        currencyCode: currencyCode || 'EUR',
+        currency: currency || '€',
+        immediatePaymentRequired: immediatePaymentRequired || false,
+      })
       .returning();
     res.status(201).json(inserted);
   } catch (error) {
@@ -75,13 +103,33 @@ app.post('/api/products', async (req: Request, res: Response) => {
   try {
     const { db } = await import('./db/index');
     const { products } = await import('./db/schema');
-    const { tenantId, name, priceCents, category } = req.body;
+    const {
+      tenantId,
+      name,
+      priceCents,
+      costCents,
+      description,
+      ingredients,
+      category,
+      subcategory,
+    } = req.body;
+
     if (!tenantId || !name || priceCents === undefined) {
       return res.status(400).json({ error: 'tenantId, name, and priceCents are required' });
     }
+
     const [inserted] = await db
       .insert(products)
-      .values({ tenantId, name, priceCents, category })
+      .values({
+        tenantId,
+        name,
+        priceCents,
+        costCents,
+        description,
+        ingredients,
+        category,
+        subcategory,
+      })
       .returning();
     res.status(201).json(inserted);
   } catch (error) {
@@ -109,13 +157,36 @@ app.post('/api/tables', async (req: Request, res: Response) => {
   try {
     const { db } = await import('./db/index');
     const { tables } = await import('./db/schema');
-    const { tenantId, name, token, seatCount } = req.body;
+    const {
+      tenantId,
+      name,
+      token,
+      seatCount,
+      xPosition,
+      yPosition,
+      shape,
+      width,
+      height,
+    } = req.body;
+
     if (!tenantId || !name || !token) {
       return res.status(400).json({ error: 'tenantId, name, and token are required' });
     }
+
     const [inserted] = await db
       .insert(tables)
-      .values({ tenantId, name, token, seatCount: seatCount || 4 })
+      .values({
+        tenantId,
+        name,
+        token,
+        seatCount: seatCount || 4,
+        xPosition: xPosition !== undefined ? xPosition : 0,
+        yPosition: yPosition !== undefined ? yPosition : 0,
+        shape: shape || 'rectangle',
+        width: width !== undefined ? width : 100,
+        height: height !== undefined ? height : 60,
+        isActive: true,
+      })
       .returning();
     res.status(201).json(inserted);
   } catch (error) {
@@ -139,19 +210,56 @@ app.get('/api/orders', async (req: Request, res: Response) => {
   }
 });
 
+app.get('/api/orders/:id', async (req: Request, res: Response) => {
+  try {
+    const { db } = await import('./db/index');
+    const { orders, orderItems } = await import('./db/schema');
+    const orderId = Number(req.params.id);
+
+    const [order] = await db.select().from(orders).where(eq(orders.id, orderId));
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+    res.json({ ...order, items });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch order' });
+  }
+});
+
 app.post('/api/orders', async (req: Request, res: Response) => {
   try {
     const { db } = await import('./db/index');
     const { orders, orderItems } = await import('./db/schema');
-    const { tenantId, tableId, items, customerName, notes } = req.body;
+    const {
+      tenantId,
+      tableId,
+      items,
+      customerName,
+      notes,
+      paymentMethod,
+      staffUrgent,
+    } = req.body;
+
     if (!tenantId) {
       return res.status(400).json({ error: 'tenantId is required' });
     }
+
     const [order] = await db
       .insert(orders)
-      .values({ tenantId, tableId, customerName, notes, status: 'pending' })
+      .values({
+        tenantId,
+        tableId,
+        customerName,
+        notes,
+        paymentMethod,
+        staffUrgent: staffUrgent || false,
+        status: 'pending',
+      })
       .returning();
 
+    let createdItems: any[] = [];
     if (items && Array.isArray(items) && items.length > 0) {
       const itemsToInsert = items.map((item: any) => ({
         orderId: order.id,
@@ -162,11 +270,33 @@ app.post('/api/orders', async (req: Request, res: Response) => {
         notes: item.notes,
         status: 'pending' as const,
       }));
-      await db.insert(orderItems).values(itemsToInsert);
+      createdItems = await db.insert(orderItems).values(itemsToInsert).returning();
     }
 
-    res.status(201).json(order);
+    res.status(201).json({ ...order, items: createdItems });
   } catch (error) {
     res.status(500).json({ error: 'Failed to create order' });
+  }
+});
+
+app.patch('/api/orders/:id/status', async (req: Request, res: Response) => {
+  try {
+    const { db } = await import('./db/index');
+    const { orders } = await import('./db/schema');
+    const orderId = Number(req.params.id);
+    const { status } = req.body;
+
+    const [updated] = await db
+      .update(orders)
+      .set({ status })
+      .where(eq(orders.id, orderId))
+      .returning();
+
+    if (!updated) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update order status' });
   }
 });
