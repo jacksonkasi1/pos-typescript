@@ -1,0 +1,1736 @@
+import { Component, inject, signal, computed, OnInit, OnDestroy, HostListener } from '@angular/core';
+import { DomSanitizer, SafeResourceUrl, SafeStyle } from '@angular/platform-browser';
+import { FormsModule } from '@angular/forms';
+import { CommonModule, SlicePipe } from '@angular/common';
+import { ActivatedRoute } from '@angular/router';
+import { ApiService, Product, ProductQuestion, OrderItemCreate, OrderHistoryItem, TableCartResponse } from '../services/api.service';
+import { AudioService } from '../services/audio.service';
+import { environment } from '../../environments/environment';
+import { FocusFirstInputDirective } from '../shared/focus-first-input.directive';
+import { LanguagePickerComponent } from '../shared/language-picker.component';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { getSubcategoryLabel as resolveSubcategoryLabel } from '../shared/product-subcategory-label.util';
+import { productStockLeft } from '../shared/product-stock.util';
+
+interface CartItem {
+  product: Product;
+  quantity: number;
+  notes: string;
+  /** Answers to product questions: { question_id: value } */
+  customization_answers?: Record<string, string | number | string[]>;
+  /** From API after order placed */
+  customization_summary?: string | null;
+  status?: string;  // Item status from backend
+  itemId?: number;  // Backend item ID for editing
+  /** Shared draft cart line id (server) */
+  lineId?: string;
+  sessionId?: string;
+  customerName?: string | null;
+}
+
+interface PlacedOrder {
+  id: number;
+  items: CartItem[];
+  notes: string;
+  total: number;
+  status: string;
+}
+
+@Component({
+  selector: 'app-menu',
+  standalone: true,
+  imports: [CommonModule, FormsModule, FocusFirstInputDirective, LanguagePickerComponent, TranslateModule, SlicePipe],
+  templateUrl: './menu.component.html',
+  styleUrl: './menu.component.scss'
+})
+export class MenuComponent implements OnInit, OnDestroy {
+  private route = inject(ActivatedRoute);
+  private api = inject(ApiService);
+  private audio = inject(AudioService);
+  private sanitizer = inject(DomSanitizer);
+  private translate = inject(TranslateService);
+
+  // Core state
+  loading = signal(true);
+  error = signal(false);
+  tableClosed = signal(false);
+  closedTableName = signal('');
+  closedTenantName = signal('');
+  closedTenantLogo = signal<string | null>(null);
+  closedTenantId = signal<number | null>(null);
+  products = signal<Product[]>([]);
+  filteredProducts = signal<Product[]>([]);
+  selectedCategory = signal<string | null>(null);
+  selectedSubcategory = signal<string | null>(null);
+  availableCategories = signal<string[]>([]);
+  availableSubcategories = signal<string[]>([]);
+
+  // Tenant info
+  tenantName = signal('');
+  tableName = signal('');
+  tenantLogo = signal<string | null>(null);
+  tenantDescription = signal<string | null>(null);
+  tenantPhone = signal<string | null>(null);
+  tenantWhatsapp = signal<string | null>(null);
+  tenantAddress = signal<string | null>(null);
+  tenantWebsite = signal<string | null>(null);
+  tenantCurrency = signal<string>('€');
+  tenantCurrencyCode = signal<string>('EUR');
+  immediatePaymentRequired = signal(false);
+  tenantPublicBackgroundColor = signal<string | null>(null);
+  tenantRevolutConfigured = signal(false);
+  tenantHeaderBackgroundFilename = signal<string | null>(null);
+
+  // Cart & Orders
+  cart = signal<CartItem[]>([]);
+  /** When true, cart mutations go to the shared table cart API (#349). */
+  sharedCartEnabled = signal(false);
+  orderNotes = '';
+  /** Cart line keys with expanded per-item comment field */
+  expandedCommentKeys = signal<Set<string>>(new Set());
+  readonly maxNoteLength = 500;
+  submitting = signal(false);
+  placedOrders = signal<PlacedOrder[]>([]);
+  orderHistory = signal<OrderHistoryItem[]>([]);
+  expandedHistoryId = signal<number | null>(null);
+  showSuccessToast = signal(false);
+  lastOrderId = signal(0);
+  ordersExpanded = signal(true);
+  menuExpanded = signal(true);
+  private notesSyncTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  // Product details toggles (legacy)
+  showIngredientsFor = signal<number | null>(null);
+  showDescriptionFor = signal<number | null>(null);
+
+  // New UI state
+  isScrolled = signal(false);
+  cartExpanded = signal(false);
+  /** Product ids in cart — grid/featured cards get a light “in cart” background. */
+  productIdsInCart = computed(() => {
+    const ids = new Set<number>();
+    for (const line of this.cart()) {
+      const id = line.product.id;
+      if (id != null) ids.add(id);
+    }
+    return ids;
+  });
+  /** Brief highlight on the menu card after add (same pattern as cart line flash). */
+  justAddedProductIds = signal<Set<number>>(new Set());
+  /** Brief highlight for a specific cart line (product + customization key). */
+  justAddedCartKeys = signal<Set<string>>(new Set());
+  selectedProduct = signal<Product | null>(null);
+  /** When set, show modal to collect product question answers before adding to cart */
+  productToAddWithQuestions = signal<Product | null>(null);
+  /** Collected answers for productToAddWithQuestions (question_id -> value) */
+  customizationAnswersForm = signal<Record<string, string | number | string[]>>({});
+
+  // Customer identity
+  customerName = signal('');
+  showNameModal = signal(false);
+  nameInputValue = '';
+
+  // Table session
+  tableIsActive = signal(true);  // Default true for backward compatibility
+  tableRequiresPin = signal(false);
+  showPinModal = signal(false);
+  pinValue = signal('');
+  pinError = signal('');
+  private currentPin = '';  // Stored after successful validation
+
+  // Payment options
+  showPaymentOptions = signal(false);
+  paymentOptionsStep = signal<'choose' | 'stripe' | 'message' | 'success'>('choose');
+  paymentMessageTarget = signal<'waiter' | 'cash' | 'card_terminal' | null>(null);
+  paymentMessage = signal('');
+  paymentRequestSending = signal(false);
+  paymentRequestSuccess = signal(false);
+  waiterCallCooldown = signal(false);
+
+  // Stripe payment
+  showPaymentModal = signal(false);
+  paymentAmount = signal(0);
+  cardError = signal('');
+  processingPayment = signal(false);
+  paymentSuccess = signal(false);
+  private stripe: any = null;
+  private cardElement: any = null;
+  private clientSecret = '';
+  private currentOrderId = 0;
+  private paymentIntentId = '';
+
+  // Internal
+  private tableToken = '';
+  private tenantId = 0;
+  private ws: WebSocket | null = null;
+  private sessionId = '';
+  /** When set (from staff link), PIN is not required; sent with getMenu and submitOrder. */
+  private staffAccess: string | null = null;
+
+  // Computed
+  tableGreeting = computed(() => {
+    const name = this.customerName();
+    const table = this.tableName();
+    if (name) {
+      return `Hey, ${name}! · ${table}`;
+    }
+    return table;
+  });
+
+  isPaid = computed(() => {
+    const orders = this.placedOrders();
+    if (orders.length === 0) return false;
+    return orders[0].status === 'paid';
+  });
+
+  // Featured products (first 5 with images, for now)
+  featuredProducts = computed(() => {
+    return this.products()
+      .filter(p => p.image_filename)
+      .slice(0, 6);
+  });
+
+  // Listen for scroll to update sticky nav state
+  @HostListener('window:scroll')
+  onScroll() {
+    this.isScrolled.set(window.scrollY > 200);
+  }
+
+  ngOnInit() {
+    this.tableToken = this.route.snapshot.params['token'];
+    this.staffAccess =
+      this.route.snapshot.queryParams['staff_access'] ??
+      (typeof window !== 'undefined' && window.location.search
+        ? new URLSearchParams(window.location.search).get('staff_access')
+        : null) ??
+      null;
+    this.initializeSession();
+    this.loadMenu();
+    this.loadStoredOrders();
+    this.loadOrderHistory();
+  }
+
+  ngOnDestroy() {
+    this.ws?.close();
+    for (const t of this.notesSyncTimers.values()) {
+      clearTimeout(t);
+    }
+    this.notesSyncTimers.clear();
+  }
+
+  // ============================================
+  // SESSION & CUSTOMER NAME
+  // ============================================
+  private initializeSession() {
+    const sessionKey = `session_${this.tableToken}`;
+    let sessionId = localStorage.getItem(sessionKey);
+
+    if (!sessionId) {
+      sessionId = this.generateUUID();
+      localStorage.setItem(sessionKey, sessionId);
+    }
+    this.sessionId = sessionId;
+
+    const nameKey = `customer_name_${this.tableToken}`;
+    const customerName = localStorage.getItem(nameKey);
+
+    if (!customerName) {
+      this.showNameModal.set(true);
+    } else {
+      this.customerName.set(customerName);
+    }
+  }
+
+  private generateUUID(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
+  skipName() {
+    this.showNameModal.set(false);
+    this.nameInputValue = '';
+  }
+
+  confirmName() {
+    const name = this.nameInputValue.trim();
+    if (name) {
+      this.customerName.set(name);
+      localStorage.setItem(`customer_name_${this.tableToken}`, name);
+    }
+    this.showNameModal.set(false);
+    this.nameInputValue = '';
+  }
+
+  // ============================================
+  // MENU LOADING
+  // ============================================
+  loadMenu() {
+    this.api.getMenu(this.tableToken, this.staffAccess ?? undefined).subscribe({
+      next: data => {
+        const productsWithSource = data.products.map((product: Product) => ({
+          ...product,
+          _source: product._source || 'unknown'
+        }));
+        this.products.set(productsWithSource);
+        this.tenantName.set(data.tenant_name);
+        this.tableName.set(data.table_name);
+        this.tenantId = data.tenant_id;
+
+        this.connectWebSocket();
+
+        const categories = new Set<string>();
+        productsWithSource.forEach((product: Product) => {
+          if (product.category) {
+            categories.add(product.category);
+          }
+        });
+        this.availableCategories.set(Array.from(categories).sort());
+
+        this.updateSubcategories(null);
+        this.applyFilter(null, null);
+
+        if (data.tenant_logo && data.tenant_id) {
+          this.tenantLogo.set(`${environment.apiUrl}/uploads/${data.tenant_id}/logo/${data.tenant_logo}`);
+        }
+
+        this.tenantDescription.set(data.tenant_description || null);
+        this.tenantPhone.set(data.tenant_phone || null);
+        this.tenantWhatsapp.set(data.tenant_whatsapp || null);
+        this.tenantAddress.set(data.tenant_address || null);
+        this.tenantWebsite.set(data.tenant_website || null);
+        const code = (data.tenant_currency_code || 'EUR').toUpperCase();
+        this.tenantCurrencyCode.set(code);
+        this.tenantCurrency.set(data.tenant_currency || '€');
+        this.immediatePaymentRequired.set(data.tenant_immediate_payment_required || false);
+        this.tenantPublicBackgroundColor.set(data.tenant_public_background_color ?? null);
+        this.tenantHeaderBackgroundFilename.set(data.tenant_header_background_filename ?? null);
+
+        if (data.tenant_stripe_publishable_key) {
+          this.api.setTenantStripeKey(data.tenant_stripe_publishable_key);
+        }
+        this.tenantRevolutConfigured.set(!!data.tenant_revolut_configured);
+
+        // Table session status
+        this.tableIsActive.set(data.table_is_active !== false);  // Default true for backward compatibility
+        this.tableRequiresPin.set(data.table_requires_pin === true);
+        this.sharedCartEnabled.set(data.table_shared_cart === true);
+
+        // Check if the table session has changed (table was closed and reopened).
+        // If active_order_id differs from what we stored, clear stale data and
+        // start a fresh customer session so new customers don't inherit old data.
+        const storedOrderId = localStorage.getItem(`active_order_${this.tableToken}`);
+        const currentOrderId = data.active_order_id ? String(data.active_order_id) : null;
+
+        if (currentOrderId && storedOrderId !== currentOrderId) {
+          // Table session changed -- clear all stale data
+          sessionStorage.removeItem(`pin_${this.tableToken}`);
+          localStorage.removeItem(`session_${this.tableToken}`);
+          localStorage.removeItem(`customer_name_${this.tableToken}`);
+          localStorage.removeItem(`orders_${this.tableToken}`);
+          this.currentPin = '';
+          this.placedOrders.set([]);
+          this.customerName.set('');
+          this.cart.set([]);
+
+          // Re-initialize session with fresh IDs
+          const newSessionId = this.generateUUID();
+          localStorage.setItem(`session_${this.tableToken}`, newSessionId);
+          this.sessionId = newSessionId;
+          this.showNameModal.set(true);
+
+          // Store new active_order_id
+          localStorage.setItem(`active_order_${this.tableToken}`, currentOrderId);
+        } else if (currentOrderId) {
+          // Same session -- restore stored PIN
+          localStorage.setItem(`active_order_${this.tableToken}`, currentOrderId);
+          const storedPin = sessionStorage.getItem(`pin_${this.tableToken}`);
+          if (storedPin) {
+            this.currentPin = storedPin;
+          }
+        }
+
+        if (this.sharedCartEnabled()) {
+          this.loadSharedCart();
+        }
+
+        this.loading.set(false);
+      },
+      error: (err) => {
+        if (err.status === 403 && err.error?.detail?.code === 'TABLE_CLOSED') {
+          const detail = err.error.detail;
+          this.tableClosed.set(true);
+          this.closedTableName.set(detail.table_name || '');
+          this.closedTenantName.set(detail.tenant_name || '');
+          this.closedTenantId.set(detail.tenant_id || null);
+          this.tenantPublicBackgroundColor.set(detail.tenant_public_background_color ?? null);
+          this.tenantHeaderBackgroundFilename.set(detail.tenant_header_background_filename ?? null);
+          if (detail.tenant_logo && detail.tenant_id) {
+            this.closedTenantLogo.set(
+              `${environment.apiUrl}/uploads/${detail.tenant_id}/logo/${detail.tenant_logo}`
+            );
+          }
+        } else {
+          this.error.set(true);
+        }
+        this.loading.set(false);
+      }
+    });
+  }
+
+  // ============================================
+  // WEBSOCKET
+  // ============================================
+  connectWebSocket() {
+    if (this.ws || !this.tableToken) return;
+    
+    let wsUrl = environment.wsUrl;
+    // Handle relative URLs (e.g. '/ws')
+    if (wsUrl.startsWith('/')) {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      wsUrl = `${protocol}//${window.location.host}${wsUrl}`;
+    }
+    // Handle absolute HTTP URLs
+    else if (wsUrl.startsWith('http')) {
+      wsUrl = wsUrl.replace(/^http/, 'ws').replace(/^https/, 'wss');
+    }
+
+    // environment.wsUrl already includes /ws, so we just append the path
+    // If environment.wsUrl is absolute (e.g. ws://host:port/ws), it works
+    // If it was relative, we fixed it above
+    this.ws = new WebSocket(`${wsUrl}/table/${this.tableToken}`);
+    this.ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'table_closed') {
+          // Staff has closed this table -- show the closed screen
+          this.tableIsActive.set(false);
+          this.tableClosed.set(true);
+          this.closedTenantName.set(this.tenantName());
+          this.closedTenantLogo.set(this.tenantLogo());
+          this.closedTableName.set(this.tableName());
+          // Clear stored session data for this table
+          sessionStorage.removeItem(`pin_${this.tableToken}`);
+          this.currentPin = '';
+          this.ws?.close();
+          return;
+        } else if (data.type === 'status_update') {
+          this.audio.playCustomerStatusChange();
+          this.placedOrders.update(orders => orders.map(o => o.id === data.order_id ? { ...o, status: data.status } : o));
+          this.saveOrders();
+          this.loadStoredOrders();
+        } else if (data.type === 'item_status_update') {
+          this.audio.playCustomerStatusChange();
+          if (data.status) {
+            this.placedOrders.update(orders =>
+              orders.map(o => o.id === data.order_id ? { ...o, status: data.status } : o)
+            );
+          }
+          this.loadStoredOrders();
+        } else if (data.type === 'item_removed' || data.type === 'item_updated' || data.type === 'order_cancelled' || data.type === 'items_added' || data.type === 'new_order') {
+          this.audio.playCustomerOrderChange();
+          this.loadStoredOrders();
+        } else if (data.type === 'cart_updated') {
+          if (this.sharedCartEnabled()) {
+            this.loadSharedCart();
+          }
+        }
+      } catch { }
+    };
+    this.ws.onclose = () => {
+      this.ws = null;
+      setTimeout(() => this.connectWebSocket(), 5000);
+    };
+  }
+
+  saveOrders() {
+    localStorage.setItem(`orders_${this.tableToken}`, JSON.stringify(this.placedOrders()));
+  }
+
+  // ============================================
+  // CATEGORY FILTERING
+  // ============================================
+  selectCategory(category: string | null) {
+    this.selectedCategory.set(category);
+    this.selectedSubcategory.set(null);
+    this.updateSubcategories(category);
+    this.applyFilter(category, null);
+    // Scroll to top of products section
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  selectSubcategory(subcategoryCode: string | null) {
+    this.selectedSubcategory.set(subcategoryCode);
+    this.applyFilter(this.selectedCategory(), subcategoryCode);
+  }
+
+  updateSubcategories(category: string | null) {
+    if (!category) {
+      this.availableSubcategories.set([]);
+      return;
+    }
+
+    const subcategoryCodes = new Set<string>();
+
+    this.products().forEach((product: Product) => {
+      if (product.category === category) {
+        if (product.subcategory_codes && product.subcategory_codes.length > 0) {
+          product.subcategory_codes.forEach(code => subcategoryCodes.add(code));
+        } else {
+          if (product.subcategory) {
+            const wineTypeCode = this.getWineTypeCodeFromString(product.wine_type || product.subcategory);
+            if (wineTypeCode) {
+              subcategoryCodes.add(wineTypeCode);
+            }
+            if (product.subcategory.includes('Wine by Glass')) {
+              subcategoryCodes.add('WINE_BY_GLASS');
+            }
+            const otherCodes = this.extractOtherSubcategoryCodes(product.subcategory);
+            otherCodes.forEach(code => subcategoryCodes.add(code));
+          }
+        }
+      }
+    });
+
+    const orderedCodes = [
+      'WINE_RED', 'WINE_WHITE', 'WINE_SPARKLING', 'WINE_ROSE', 'WINE_SWEET', 'WINE_FORTIFIED',
+      'HOT_DRINKS', 'COLD_DRINKS', 'ALCOHOLIC', 'NON_ALCOHOLIC', 'BEER', 'COCKTAILS', 'SOFT_DRINKS',
+      'APPETIZERS', 'SALADS', 'SOUPS', 'BREAD_DIPS',
+      'MEAT', 'FISH', 'POULTRY', 'VEGETARIAN', 'VEGAN', 'PASTA', 'RICE', 'PIZZA',
+      'CAKES', 'ICE_CREAM', 'FRUIT', 'CHEESE',
+      'VEGETABLES', 'POTATOES', 'BREAD',
+      'WINE_BY_GLASS'
+    ];
+
+    const subcategories: string[] = [];
+    orderedCodes.forEach(code => {
+      if (subcategoryCodes.has(code)) {
+        subcategories.push(code);
+      }
+    });
+
+    this.availableSubcategories.set(subcategories);
+  }
+
+  extractOtherSubcategoryCodes(subcategory: string): string[] {
+    const codes: string[] = [];
+    const subcatLower = subcategory.toLowerCase();
+
+    if (subcategory === 'Appetizers' || subcatLower.includes('appetizers')) codes.push('APPETIZERS');
+    if (subcategory === 'Salads' || subcatLower.includes('salads')) codes.push('SALADS');
+    if (subcategory === 'Soups' || subcatLower.includes('soups')) codes.push('SOUPS');
+    if (subcategory === 'Bread & Dips' || (subcatLower.includes('bread') && subcatLower.includes('dips'))) codes.push('BREAD_DIPS');
+    if (subcategory === 'Meat') codes.push('MEAT');
+    if (subcategory === 'Fish') codes.push('FISH');
+    if (subcategory === 'Poultry') codes.push('POULTRY');
+    if (subcategory === 'Vegetarian') codes.push('VEGETARIAN');
+    if (subcategory === 'Vegan') codes.push('VEGAN');
+    if (subcategory === 'Pasta') codes.push('PASTA');
+    if (subcategory === 'Rice') codes.push('RICE');
+    if (subcategory === 'Pizza') codes.push('PIZZA');
+    if (subcategory === 'Cakes') codes.push('CAKES');
+    if (subcategory === 'Ice Cream') codes.push('ICE_CREAM');
+    if (subcategory === 'Fruit') codes.push('FRUIT');
+    if (subcategory === 'Cheese') codes.push('CHEESE');
+    if (subcategory === 'Hot Drinks') codes.push('HOT_DRINKS');
+    if (subcategory === 'Cold Drinks') codes.push('COLD_DRINKS');
+    if (subcategory === 'Alcoholic') codes.push('ALCOHOLIC');
+    if (subcategory === 'Non-Alcoholic') codes.push('NON_ALCOHOLIC');
+    if (subcategory === 'Beer') codes.push('BEER');
+    if (subcategory === 'Cocktails') codes.push('COCKTAILS');
+    if (subcategory === 'Soft Drinks') codes.push('SOFT_DRINKS');
+    if (subcategory === 'Vegetables') codes.push('VEGETABLES');
+    if (subcategory === 'Potatoes') codes.push('POTATOES');
+    if (subcategory === 'Bread') codes.push('BREAD');
+
+    return codes;
+  }
+
+  getWineTypeCodeFromString(wineType: string | undefined): string | null {
+    if (!wineType) return null;
+    if (wineType === 'Red Wine') return 'WINE_RED';
+    if (wineType === 'White Wine') return 'WINE_WHITE';
+    if (wineType === 'Sparkling Wine') return 'WINE_SPARKLING';
+    if (wineType === 'Rosé Wine') return 'WINE_ROSE';
+    if (wineType === 'Sweet Wine') return 'WINE_SWEET';
+    if (wineType === 'Fortified Wine') return 'WINE_FORTIFIED';
+    return null;
+  }
+
+  applyFilter(category: string | null, subcategoryCode: string | null) {
+    let filtered = this.products();
+
+    if (category) {
+      filtered = filtered.filter(p => p.category === category);
+    }
+
+    if (subcategoryCode) {
+      if (subcategoryCode === 'WINE_BY_GLASS') {
+        filtered = filtered.filter(p =>
+          p.subcategory_codes?.includes('WINE_BY_GLASS') ||
+          (p.subcategory && p.subcategory.includes('Wine by Glass'))
+        );
+      } else {
+        filtered = filtered.filter(p => {
+          if (p.subcategory_codes && p.subcategory_codes.includes(subcategoryCode)) {
+            return true;
+          }
+          const wineTypeCode = this.getWineTypeCodeFromString(p.wine_type);
+          return wineTypeCode === subcategoryCode;
+        });
+      }
+    }
+
+    filtered = filtered.map(p => ({
+      ...p,
+      _source: p._source || 'unknown'
+    }));
+
+    this.filteredProducts.set(filtered);
+  }
+
+  getSubcategoryLabel(subcategoryCode: string): string {
+    return resolveSubcategoryLabel(subcategoryCode, this.translate);
+  }
+
+  // ============================================
+  // CATEGORY ICONS (for sticky nav)
+  // ============================================
+  getCategoryIcon(category: string): string {
+    const icons: Record<string, string> = {
+      'Starters': '🥗',
+      'Main Course': '🍝',
+      'Desserts': '🍰',
+      'Beverages': '🍷',
+      'Sides': '🥔',
+      'Wine': '🍷',
+      'Appetizers': '🥗',
+      'Entrees': '🍖',
+      'Pasta': '🍝',
+      'Pizza': '🍕',
+      'Seafood': '🦐',
+      'Meat': '🥩',
+      'Salads': '🥗',
+      'Soups': '🍲',
+      'Coffee': '☕',
+      'Tea': '🍵',
+    };
+    return icons[category] || '🍽️';
+  }
+
+  // ============================================
+  // PRODUCT HELPERS
+  // ============================================
+  /** Safe URL for tenant logo (needed for SVG, which Angular may block in img src). */
+  getLogoSafeUrl(url: string | null): SafeResourceUrl | null {
+    if (!url) return null;
+    return this.sanitizer.bypassSecurityTrustResourceUrl(url);
+  }
+
+  headerBackgroundStyle(): SafeStyle | null {
+    const fn = this.tenantHeaderBackgroundFilename();
+    if (!fn || !this.tenantId) return null;
+    const url = this.api.getTenantHeaderBackgroundUrl(fn, this.tenantId);
+    return url ? this.sanitizer.bypassSecurityTrustStyle('url("' + url + '")') : null;
+  }
+
+  /** Build WhatsApp wa.me link from phone string (e.g. +34 612 345 678 -> https://wa.me/34612345678). */
+  getWhatsAppUrl(phone: string): string {
+    const digits = (phone || '').replace(/\D/g, '');
+    return `https://wa.me/${digits}`;
+  }
+
+  getProductImageUrl(product: Product): string | null {
+    if (!product.image_filename || !product.tenant_id) return null;
+    if (product.image_filename.startsWith('providers/')) {
+      return `${environment.apiUrl}/uploads/${product.image_filename}`;
+    } else {
+      return `${environment.apiUrl}/uploads/${product.tenant_id}/products/${product.image_filename}`;
+    }
+  }
+
+  getProductKey(product: Product, customizationAnswers?: Record<string, string | number | string[]>): string {
+    if (!product) return 'null-product';
+    const source = product._source || 'unknown';
+    const id = product.id ?? 'no-id';
+    const name = product.name || 'no-name';
+    const price = product.price_cents ?? 0;
+    const answersKey = customizationAnswers && Object.keys(customizationAnswers).length > 0
+      ? JSON.stringify(customizationAnswers)
+      : '';
+    return `${source}-${id}-${name}-${price}${answersKey ? '-' + answersKey : ''}`;
+  }
+
+  getCartLineKey(item: Pick<CartItem, 'product' | 'customization_answers' | 'notes' | 'lineId' | 'sessionId'>): string {
+    if (item.lineId) {
+      return `line:${item.lineId}`;
+    }
+    const notePart = (item.notes || '').trim();
+    const sess = item.sessionId || this.sessionId || '';
+    return `${this.getProductKey(item.product, item.customization_answers)}|${notePart}|${sess}`;
+  }
+
+  isMyCartItem(item: CartItem): boolean {
+    if (!item.sessionId) return true;
+    return item.sessionId === this.sessionId;
+  }
+
+  private applySharedCartResponse(res: TableCartResponse): void {
+    if (!res.shared) {
+      this.sharedCartEnabled.set(false);
+      return;
+    }
+    this.sharedCartEnabled.set(true);
+    const mapped: CartItem[] = (res.items || []).map(line => ({
+      lineId: line.line_id,
+      sessionId: line.session_id,
+      customerName: line.customer_name ?? null,
+      product: {
+        id: line.product_id,
+        name: line.product_name,
+        price_cents: line.price_cents,
+        _source: (line.source as Product['_source']) || undefined,
+      } as Product,
+      quantity: line.quantity,
+      notes: line.notes || '',
+      customization_answers: line.customization_answers || undefined,
+    }));
+    this.cart.set(mapped);
+    if (mapped.length > 0 && !this.cartExpanded()) {
+      // Keep collapsed summary visible; do not force expand on remote updates
+    }
+  }
+
+  loadSharedCart(): void {
+    if (!this.tableToken) return;
+    this.api.getTableCart(this.tableToken).subscribe({
+      next: res => this.applySharedCartResponse(res),
+      error: () => {
+        // Fall back to local cart if shared cart API fails
+        this.sharedCartEnabled.set(false);
+      },
+    });
+  }
+
+  private syncCartFromResponse(res: TableCartResponse, flashProduct?: Product, flashKey?: string): void {
+    this.applySharedCartResponse(res);
+    if (flashProduct && flashKey) {
+      this.flashProductAdded(flashProduct, flashKey);
+    }
+    if (this.cart().length === 1) {
+      this.cartExpanded.set(true);
+    }
+  }
+
+  toggleCartItemComment(item: CartItem): void {
+    const key = this.getCartLineKey(item);
+    this.expandedCommentKeys.update(set => {
+      const next = new Set(set);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  isCartItemCommentExpanded(item: CartItem): boolean {
+    return this.expandedCommentKeys().has(this.getCartLineKey(item));
+  }
+
+  updateCartItemNotes(item: CartItem, notes: string): void {
+    const trimmed = notes.slice(0, this.maxNoteLength);
+    const oldKey = this.getCartLineKey(item);
+    if (!this.isMyCartItem(item)) {
+      return;
+    }
+    this.cart.update(items =>
+      items.map(i => (this.getCartLineKey(i) === oldKey ? { ...i, notes: trimmed } : i))
+    );
+    if (trimmed.trim()) {
+      this.expandedCommentKeys.update(set => {
+        const next = new Set(set);
+        next.add(this.getCartLineKey({ ...item, notes: trimmed }));
+        next.delete(oldKey);
+        return next;
+      });
+    }
+    if (this.sharedCartEnabled() && item.lineId) {
+      const lineId = item.lineId;
+      const prev = this.notesSyncTimers.get(lineId);
+      if (prev) clearTimeout(prev);
+      this.notesSyncTimers.set(
+        lineId,
+        setTimeout(() => {
+          this.notesSyncTimers.delete(lineId);
+          this.api
+            .updateTableCartItem(this.tableToken, lineId, {
+              session_id: this.sessionId,
+              notes: trimmed,
+            })
+            .subscribe({
+              next: res => this.applySharedCartResponse(res),
+              error: () => this.loadSharedCart(),
+            });
+        }, 400)
+      );
+    }
+  }
+
+  getWineTypeClass(wineType: string): string {
+    const type = wineType.toLowerCase();
+    if (type.includes('red')) return 'red';
+    if (type.includes('white')) return 'white';
+    if (type.includes('sparkling')) return 'sparkling';
+    if (type.includes('rosé') || type.includes('rose')) return 'rose';
+    if (type.includes('sweet')) return 'sweet';
+    if (type.includes('fortified')) return 'fortified';
+    return 'other';
+  }
+
+  getWineTypeLabel(wineType: string): string {
+    if (wineType.includes('Red')) return 'Tinto';
+    if (wineType.includes('White')) return 'Blanco';
+    if (wineType.includes('Sparkling')) return 'Espumoso';
+    if (wineType.includes('Rosé') || wineType.includes('Rose')) return 'Rosado';
+    if (wineType.includes('Sweet')) return 'Dulce';
+    if (wineType.includes('Fortified')) return 'Generoso';
+    return wineType;
+  }
+
+  // ============================================
+  // DIETARY INFO HELPERS
+  // ============================================
+  hasDietaryInfo(product: Product): boolean {
+    return this.isVegetarian(product) || this.isVegan(product) || this.isGlutenFree(product);
+  }
+
+  isVegetarian(product: Product): boolean {
+    const ingredients = product.ingredients?.toLowerCase() || '';
+    const subcategory = product.subcategory?.toLowerCase() || '';
+    return subcategory.includes('vegetarian') ||
+      ingredients.includes('vegetariano') ||
+      ingredients.includes('vegetarian');
+  }
+
+  isVegan(product: Product): boolean {
+    const ingredients = product.ingredients?.toLowerCase() || '';
+    const subcategory = product.subcategory?.toLowerCase() || '';
+    return subcategory.includes('vegan') ||
+      ingredients.includes('vegano') ||
+      ingredients.includes('vegan');
+  }
+
+  isGlutenFree(product: Product): boolean {
+    const ingredients = product.ingredients?.toLowerCase() || '';
+    return ingredients.includes('sin gluten') ||
+      ingredients.includes('gluten-free') ||
+      ingredients.includes('gluten free');
+  }
+
+  // ============================================
+  // PRODUCT DETAIL (legacy toggles + new modal)
+  // ============================================
+  toggleIngredients(productId: number) {
+    this.showIngredientsFor.update(current => current === productId ? null : productId);
+  }
+
+  toggleDescription(productId: number) {
+    this.showDescriptionFor.update(current => current === productId ? null : productId);
+  }
+
+  openProductDetail(product: Product) {
+    this.selectedProduct.set(product);
+    document.body.style.overflow = 'hidden';
+  }
+
+  closeProductDetail() {
+    this.selectedProduct.set(null);
+    document.body.style.overflow = '';
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey(): void {
+    if (this.selectedProduct()) {
+      this.closeProductDetail();
+    }
+  }
+
+  // ============================================
+  // CART OPERATIONS
+  // ============================================
+  addToCart(product: Product, customizationAnswers?: Record<string, string | number | string[]>) {
+    const newLine: CartItem = {
+      product,
+      quantity: 1,
+      notes: '',
+      customization_answers: customizationAnswers,
+      sessionId: this.sessionId,
+      customerName: this.customerName() || null,
+    };
+    const lineKey = this.getCartLineKey(newLine);
+
+    if (this.sharedCartEnabled()) {
+      this.api
+        .addTableCartItem(this.tableToken, {
+          session_id: this.sessionId,
+          customer_name: this.customerName() || undefined,
+          product_id: product.id!,
+          quantity: 1,
+          source: product._source || undefined,
+          customization_answers:
+            customizationAnswers && Object.keys(customizationAnswers).length
+              ? customizationAnswers
+              : undefined,
+        })
+        .subscribe({
+          next: res => this.syncCartFromResponse(res, product, lineKey),
+          error: () => {
+            // Local fallback if shared cart write fails
+            this.sharedCartEnabled.set(false);
+            this.addToCartLocal(product, customizationAnswers);
+          },
+        });
+      return;
+    }
+
+    this.addToCartLocal(product, customizationAnswers);
+  }
+
+  private addToCartLocal(product: Product, customizationAnswers?: Record<string, string | number | string[]>) {
+    const newLine: CartItem = {
+      product,
+      quantity: 1,
+      notes: '',
+      customization_answers: customizationAnswers,
+      sessionId: this.sessionId,
+    };
+    const lineKey = this.getCartLineKey(newLine);
+    this.cart.update(items => {
+      const existing = items.find(i => this.getCartLineKey(i) === lineKey);
+      if (existing) {
+        return items.map(i =>
+          this.getCartLineKey(i) === lineKey ? { ...i, quantity: i.quantity + 1 } : i
+        );
+      }
+      return [...items, newLine];
+    });
+    this.flashProductAdded(product, lineKey);
+    if (this.cart().length === 1) {
+      this.cartExpanded.set(true);
+    }
+  }
+
+  /** Open questions modal for a product that has customization questions. */
+  addToCartWithQuestions(product: Product) {
+    if (product.questions && product.questions.length > 0) {
+      this.productToAddWithQuestions.set(product);
+      this.customizationAnswersForm.set({});
+      return;
+    }
+    this.addToCart(product);
+  }
+
+  setCustomizationAnswer(questionId: number, value: string | number) {
+    this.customizationAnswersForm.update(prev => ({ ...prev, [questionId]: value }));
+  }
+
+  /** Multi-select choice: toggle one option; keeps sorted unique list. */
+  toggleMultiChoiceAnswer(questionId: number, option: string, checked: boolean): void {
+    this.customizationAnswersForm.update(prev => {
+      const cur = prev[questionId];
+      let arr = Array.isArray(cur) ? [...cur] : [];
+      if (checked) {
+        if (!arr.includes(option)) arr.push(option);
+      } else {
+        arr = arr.filter(x => x !== option);
+      }
+      arr.sort();
+      return { ...prev, [questionId]: arr };
+    });
+  }
+
+  isMultiChoiceQuestion(q: ProductQuestion): boolean {
+    return q.type === 'choice' && !!q.multi;
+  }
+
+  isChoiceSingleSelect(q: ProductQuestion): boolean {
+    return q.type === 'choice' && !q.multi;
+  }
+
+  isChoiceOptionsArray(q: { type: string; options?: unknown }): boolean {
+    return q.type === 'choice' && Array.isArray(q.options);
+  }
+
+  getChoiceOptions(q: ProductQuestion): string[] {
+    if (Array.isArray(q.options)) return q.options as string[];
+    if (q.options && typeof q.options === 'object' && 'choices' in q.options) {
+      const c = (q.options as { choices?: string[] }).choices;
+      return Array.isArray(c) ? c : [];
+    }
+    return [];
+  }
+
+  isMultiOptionChecked(questionId: number, option: string): boolean {
+    const cur = this.customizationAnswersForm()[questionId];
+    return Array.isArray(cur) && cur.includes(option);
+  }
+
+  confirmAddWithQuestions() {
+    const product = this.productToAddWithQuestions();
+    if (!product) return;
+    const answers = this.customizationAnswersForm();
+    const required = product.questions?.filter(q => q.required) ?? [];
+    const missing = required.filter(q => {
+      const v = answers[q.id];
+      if (q.type === 'choice' && q.multi) {
+        return !Array.isArray(v) || v.length === 0;
+      }
+      return v === undefined || v === '' || v === null;
+    });
+    if (missing.length > 0) {
+      return; // could show validation message
+    }
+    this.addToCart(product, Object.keys(answers).length ? answers : undefined);
+    this.productToAddWithQuestions.set(null);
+    this.customizationAnswersForm.set({});
+    if (this.selectedProduct()?.id === product.id) {
+      this.closeProductDetail();
+    }
+  }
+
+  cancelQuestionsModal() {
+    this.productToAddWithQuestions.set(null);
+    this.customizationAnswersForm.set({});
+  }
+
+  /** Add to cart from product detail sheet; close detail if no questions. */
+  addToCartFromDetail() {
+    const product = this.selectedProduct();
+    if (!product) return;
+    this.addToCartWithQuestions(product);
+    if (!product.questions?.length) {
+      this.closeProductDetail();
+    }
+  }
+
+  incrementItem(item: CartItem) {
+    if (!this.isMyCartItem(item)) return;
+    const lineKey = this.getCartLineKey(item);
+    if (this.sharedCartEnabled() && item.lineId) {
+      this.api
+        .updateTableCartItem(this.tableToken, item.lineId, {
+          session_id: this.sessionId,
+          quantity: item.quantity + 1,
+        })
+        .subscribe({
+          next: res => this.syncCartFromResponse(res, item.product, lineKey),
+          error: () => this.loadSharedCart(),
+        });
+      return;
+    }
+    this.cart.update(items =>
+      items.map(i => (this.getCartLineKey(i) === lineKey ? { ...i, quantity: i.quantity + 1 } : i))
+    );
+    this.flashProductAdded(item.product, lineKey);
+  }
+
+  decrementItem(item: CartItem) {
+    if (!this.isMyCartItem(item)) return;
+    const lineKey = this.getCartLineKey(item);
+    if (this.sharedCartEnabled() && item.lineId) {
+      if (item.quantity <= 1) {
+        this.api.deleteTableCartItem(this.tableToken, item.lineId, this.sessionId).subscribe({
+          next: res => this.applySharedCartResponse(res),
+          error: () => this.loadSharedCart(),
+        });
+      } else {
+        this.api
+          .updateTableCartItem(this.tableToken, item.lineId, {
+            session_id: this.sessionId,
+            quantity: item.quantity - 1,
+          })
+          .subscribe({
+            next: res => this.applySharedCartResponse(res),
+            error: () => this.loadSharedCart(),
+          });
+      }
+      return;
+    }
+    if (item.quantity <= 1) {
+      this.cart.update(items => items.filter(i => this.getCartLineKey(i) !== lineKey));
+    } else {
+      this.cart.update(items =>
+        items.map(i => (this.getCartLineKey(i) === lineKey ? { ...i, quantity: i.quantity - 1 } : i))
+      );
+    }
+  }
+
+  isProductInMenuCart(product: Product): boolean {
+    const id = product.id;
+    if (id == null) return false;
+    return this.productIdsInCart().has(id);
+  }
+
+  isProductJustAdded(product: Product): boolean {
+    const id = product.id;
+    if (id == null) return false;
+    return this.justAddedProductIds().has(id);
+  }
+
+  isCartLineJustAdded(item: CartItem): boolean {
+    return this.justAddedCartKeys().has(this.getCartLineKey(item));
+  }
+
+  /** Subtle tint while in cart + short pulse when quantity changes from the menu. */
+  private flashProductAdded(product: Product, cartLineKey: string): void {
+    const pid = product.id;
+    if (pid != null) {
+      this.justAddedProductIds.update(s => new Set(s).add(pid));
+      setTimeout(() => {
+        this.justAddedProductIds.update(s => {
+          const next = new Set(s);
+          next.delete(pid);
+          return next;
+        });
+      }, 1200);
+    }
+    this.justAddedCartKeys.update(s => new Set(s).add(cartLineKey));
+    setTimeout(() => {
+      this.justAddedCartKeys.update(s => {
+        const next = new Set(s);
+        next.delete(cartLineKey);
+        return next;
+      });
+    }, 1200);
+  }
+
+  getTotalItems(): number {
+    return this.cart().reduce((sum, item) => sum + item.quantity, 0);
+  }
+
+  getTotal(): number {
+    return this.cart().reduce((sum, item) => sum + item.product.price_cents * item.quantity, 0);
+  }
+
+  formatPrice(priceCents: number): string {
+    const currencyCode = this.tenantCurrencyCode() || 'EUR';
+    const locale = navigator.language || 'en-US';
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: currencyCode,
+      currencyDisplay: 'symbol',
+    }).format(priceCents / 100);
+  }
+
+  stockLeft(product: Product): number | null {
+    return productStockLeft(product);
+  }
+
+  sortItems(items: CartItem[]): CartItem[] {
+    return [...items].sort((a, b) => {
+      if (a.itemId && b.itemId) {
+        return b.itemId - a.itemId;
+      }
+      if (a.itemId && !b.itemId) return -1;
+      if (!a.itemId && b.itemId) return 1;
+      return 0;
+    });
+  }
+
+  // ============================================
+  // ORDER SUBMISSION
+  // ============================================
+  submitOrder() {
+    // Check if table is active
+    if (!this.tableIsActive()) {
+      alert('This table is not accepting orders. Please ask staff for assistance.');
+      return;
+    }
+
+    // Check if PIN is required and we don't have one
+    if (this.tableRequiresPin() && !this.currentPin) {
+      this.showPinModal.set(true);
+      this.pinValue.set('');
+      this.pinError.set('');
+      return;
+    }
+
+    // Proceed with order submission
+    this.doSubmitOrder();
+  }
+
+  // PIN Modal handlers
+  confirmPin() {
+    const pin = this.pinValue().trim();
+    if (pin.length !== 4 || !/^\d+$/.test(pin)) {
+      this.pinError.set('Please enter a 4-digit PIN');
+      return;
+    }
+    this.currentPin = pin;
+    sessionStorage.setItem(`pin_${this.tableToken}`, pin);
+    this.showPinModal.set(false);
+    this.doSubmitOrder();
+  }
+
+  cancelPinModal() {
+    this.showPinModal.set(false);
+    this.pinValue.set('');
+    this.pinError.set('');
+  }
+
+  private async doSubmitOrder() {
+    const myLines = this.cart().filter(item => this.isMyCartItem(item));
+    if (myLines.length === 0) {
+      alert(this.translate.instant('MENU.PLACE_OWN_ITEMS_ONLY'));
+      return;
+    }
+    const items: OrderItemCreate[] = myLines.map(item => ({
+      product_id: item.product.id!,
+      quantity: item.quantity,
+      notes: item.notes?.trim() || undefined,
+      source: item.product._source || undefined,
+      customization_answers: item.customization_answers && Object.keys(item.customization_answers).length > 0 ? item.customization_answers : undefined
+    }));
+
+    // Try to get location (optional, non-blocking)
+    let latitude: number | null = null;
+    let longitude: number | null = null;
+
+    try {
+      if ('geolocation' in navigator) {
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            timeout: 5000,
+            maximumAge: 60000
+          });
+        });
+        latitude = position.coords.latitude;
+        longitude = position.coords.longitude;
+      }
+    } catch {
+      // Location denied or unavailable - continue without it
+    }
+
+    this.submitting.set(true);
+    this.api.submitOrder(this.tableToken, {
+      items,
+      notes: this.orderNotes.trim() || undefined,
+      session_id: this.sessionId,
+      customer_name: this.customerName() || undefined,
+      pin: this.currentPin || undefined,
+      staff_access: this.staffAccess ?? undefined,
+      latitude,
+      longitude
+    }).subscribe({
+      next: (response: any) => {
+        const orderId = response.order_id;
+
+        if (response.session_id && response.session_id !== this.sessionId) {
+          console.warn('Session ID mismatch - order may belong to different session');
+        }
+
+        if (response.customer_name && response.customer_name !== this.customerName()) {
+          this.customerName.set(response.customer_name);
+          localStorage.setItem(`customer_name_${this.tableToken}`, response.customer_name);
+        }
+
+        this.orderNotes = '';
+        this.expandedCommentKeys.set(new Set());
+        this.lastOrderId.set(orderId);
+        this.showSuccessToast.set(true);
+        setTimeout(() => this.showSuccessToast.set(false), 3000);
+        this.ordersExpanded.set(true);
+        this.submitting.set(false);
+
+        if (this.sharedCartEnabled()) {
+          // Backend already dropped this session's draft lines; refresh to keep others'
+          this.loadSharedCart();
+        } else {
+          this.cart.set([]);
+          this.cartExpanded.set(false);
+        }
+
+        this.loadStoredOrders();
+
+        // Auto-trigger payment if immediate payment is required
+        if (this.immediatePaymentRequired()) {
+          setTimeout(() => {
+            const currentOrder = this.placedOrders().find(o => o.id === orderId);
+            if (currentOrder) {
+              this.startCheckout(currentOrder);
+            }
+          }, 500);
+        }
+      },
+      error: (err) => {
+        this.submitting.set(false);
+        const detail = err.error?.detail;
+        const errorMsg = typeof detail === 'string' ? detail : 'Failed to place order.';
+
+        if (err.status === 429) {
+          this.currentPin = '';
+          sessionStorage.removeItem(`pin_${this.tableToken}`);
+          this.pinError.set(errorMsg);
+          this.showPinModal.set(true);
+          return;
+        }
+
+        // Check if it's a PIN error
+        if (errorMsg.includes('PIN') || errorMsg.includes('pin')) {
+          // Clear the stored PIN and show modal again
+          this.currentPin = '';
+          sessionStorage.removeItem(`pin_${this.tableToken}`);
+          this.pinError.set(errorMsg);
+          this.showPinModal.set(true);
+        } else if (errorMsg.includes('active') || errorMsg.includes('accepting')) {
+          alert('This table is not accepting orders. Please ask staff for assistance.');
+        } else {
+          alert(errorMsg);
+        }
+      }
+    });
+  }
+
+  // ============================================
+  // ORDER MANAGEMENT
+  // ============================================
+  getStatusLabel(status: string): string {
+    const labels: Record<string, string> = {
+      pending: 'Pending',
+      preparing: 'Preparing',
+      ready: 'Ready',
+      partially_delivered: 'Partially Delivered',
+      paid: 'Paid',
+      completed: 'Done',
+      cancelled: 'Cancelled'
+    };
+    return labels[status] || status;
+  }
+
+  /**
+   * Human-readable customization for cart / active order row.
+   * Prefer API snapshot when present (placed items).
+   */
+  formatCustomizationSummary(
+    answers: Record<string, string | number | string[]> | undefined,
+    summary?: string | null
+  ): string {
+    const s = summary?.trim();
+    if (s) return s;
+    if (!answers || Object.keys(answers).length === 0) return '';
+    const parts: string[] = [];
+    for (const v of Object.values(answers)) {
+      if (Array.isArray(v)) parts.push(v.join(', '));
+      else parts.push(String(v));
+    }
+    return parts.join(' · ');
+  }
+
+  getItemStatusLabel(status: string): string {
+    const labels: Record<string, string> = {
+      pending: 'Pending',
+      preparing: 'Preparing',
+      ready: 'Ready',
+      delivered: 'Delivered',
+      cancelled: 'Cancelled'
+    };
+    return labels[status] || status;
+  }
+
+  getSortedOrderItems(items: CartItem[]): CartItem[] {
+    return this.sortItems(items);
+  }
+
+  // ============================================
+  // ORDER STORAGE
+  // ============================================
+  loadStoredOrders() {
+    // Fetch the table's active shared order from the backend.
+    // The backend returns the order linked to table.active_order_id,
+    // which is the single shared order for the current table session.
+    this.api.getCurrentOrder(this.tableToken, this.sessionId).subscribe({
+      next: (response) => {
+        if (response.order && response.order.items?.length > 0) {
+          const activeItems = response.order.items.filter((item: any) => !item.removed_by_customer);
+          const order: PlacedOrder = {
+            id: response.order.id,
+            items: this.sortItems(activeItems.map((item: any) => ({
+              product: {
+                id: item.product_id,
+                name: item.product_name,
+                price_cents: item.price_cents
+              } as Product,
+              quantity: item.quantity,
+              notes: item.notes || '',
+              customization_answers: item.customization_answers || undefined,
+              customization_summary: item.customization_summary ?? undefined,
+              status: item.status,
+              itemId: item.id
+            } as CartItem))),
+            notes: response.order.notes || '',
+            total: response.order.total_cents,
+            status: response.order.status
+          };
+          this.placedOrders.set([order]);
+          this.saveOrders();
+        } else {
+          // No active order with items -- clear displayed orders
+          this.placedOrders.set([]);
+          this.saveOrders();
+        }
+      },
+      error: () => {
+        this.loadFromLocalStorageFallback();
+      }
+    });
+  }
+
+  private loadFromLocalStorageFallback() {
+    const stored = localStorage.getItem(`orders_${this.tableToken}`);
+    if (stored) {
+      try {
+        const orders: PlacedOrder[] = JSON.parse(stored);
+        const activeOrders = orders.filter(o => o.status !== 'paid' && o.status !== 'completed');
+        activeOrders.forEach(o => o.items = this.sortItems(o.items));
+        this.placedOrders.set(activeOrders);
+        if (activeOrders.length !== orders.length) {
+          this.saveOrders();
+        }
+      } catch { }
+    }
+  }
+
+  loadOrderHistory() {
+    if (!this.tableToken || !this.sessionId) return;
+    this.api.getOrderHistory(this.tableToken, this.sessionId, 10).subscribe({
+      next: (orders) => this.orderHistory.set(orders),
+      error: () => this.orderHistory.set([])
+    });
+  }
+
+  toggleHistoryOrder(id: number) {
+    this.expandedHistoryId.update(prev => prev === id ? null : id);
+  }
+
+  formatHistoryDate(iso: string): string {
+    const d = new Date(iso);
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    if (isToday) {
+      return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    }
+    return d.toLocaleDateString(undefined, { dateStyle: 'short' }) + ' ' +
+      d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  }
+
+  canCancelOrder(order: PlacedOrder): boolean {
+    // Can cancel if order is pending and has no items in preparing/ready/delivered status
+    if (order.status === 'paid' || order.status === 'completed' || order.status === 'cancelled') {
+      return false;
+    }
+    // Check if any items are being prepared, ready, or delivered
+    const hasNonPendingItems = order.items.some(item =>
+      item.status === 'preparing' || item.status === 'ready' || item.status === 'delivered'
+    );
+    return !hasNonPendingItems;
+  }
+
+  cancelOrder(orderId: number) {
+    if (!confirm('Are you sure you want to cancel this entire order?')) {
+      return;
+    }
+
+    this.api.cancelOrder(this.tableToken, orderId, this.sessionId).subscribe({
+      next: () => {
+        this.placedOrders.set([]);
+        localStorage.removeItem(`orders_${this.tableToken}`);
+        alert('Order cancelled');
+      },
+      error: (err) => {
+        const errorMsg = err.error?.detail || 'Failed to cancel order';
+        if (errorMsg.includes('delivered')) {
+          alert('Cannot cancel order with delivered items');
+        } else if (errorMsg.includes('preparing') || errorMsg.includes('ready')) {
+          alert('Cannot cancel order with items that are being prepared or ready');
+        } else {
+          alert(errorMsg);
+        }
+      }
+    });
+  }
+
+  removeItemFromOrder(orderId: number, itemId: number) {
+    if (!confirm('Are you sure you want to remove this item from your order?')) {
+      return;
+    }
+
+    const currentOrder = this.placedOrders().find(o => o.id === orderId);
+    const itemToRemove = currentOrder?.items.find(item => item.itemId === itemId);
+    const productId = itemToRemove?.product.id;
+
+    this.api.removeOrderItem(this.tableToken, orderId, itemId, this.sessionId).subscribe({
+      next: () => {
+        this.loadStoredOrders();
+        if (productId) {
+          this.cart.update(items => items.filter(i => i.product.id !== productId));
+        }
+      },
+      error: (err) => {
+        const errorMsg = err.error?.detail || 'Failed to remove item';
+        if (errorMsg.includes('delivered')) {
+          alert('Cannot remove items that have already been delivered');
+        } else {
+          alert(errorMsg);
+        }
+      }
+    });
+  }
+
+  updateItemQuantity(orderId: number, itemId: number, quantity: number) {
+    if (quantity <= 0) {
+      alert('Quantity must be at least 1');
+      return;
+    }
+    this.api.updateOrderItemQuantity(this.tableToken, orderId, itemId, quantity, this.sessionId).subscribe({
+      next: () => {
+        this.loadStoredOrders();
+      },
+      error: (err) => {
+        const errorMsg = err.error?.detail || 'Failed to update quantity';
+        if (errorMsg.includes('preparing') || errorMsg.includes('ready') || errorMsg.includes('delivered')) {
+          alert('Cannot modify items that are being prepared, ready, or delivered');
+        } else {
+          alert(errorMsg);
+        }
+      }
+    });
+  }
+
+  // ============================================
+  // PAYMENT
+  // ============================================
+  startCheckout(order: PlacedOrder) {
+    this.currentOrderId = order.id;
+    this.paymentAmount.set(order.total);
+    this.paymentOptionsStep.set('choose');
+    this.paymentMessage.set('');
+    this.paymentMessageTarget.set(null);
+    this.paymentRequestSuccess.set(false);
+    this.showPaymentOptions.set(true);
+  }
+
+  // --- Payment options handlers ---
+
+  selectPayOnline() {
+    // Show loading state in the payment options sheet while we create the intent
+    this.paymentRequestSending.set(true);
+    this.doStripeCheckout();
+  }
+
+  selectPayRevolut() {
+    if (!this.currentOrderId || !this.tableToken) return;
+    this.paymentRequestSending.set(true);
+    this.api.createRevolutOrder(this.currentOrderId, this.tableToken).subscribe({
+      next: (res) => {
+        if (res.checkout_url) {
+          window.location.href = res.checkout_url;
+        } else {
+          this.paymentRequestSending.set(false);
+          alert('Invalid response from payment provider.');
+        }
+      },
+      error: (err) => {
+        this.paymentRequestSending.set(false);
+        alert(err.error?.detail || 'Failed to start Revolut payment.');
+      },
+    });
+  }
+
+  selectPayCash() {
+    this.paymentMessageTarget.set('cash');
+    this.paymentOptionsStep.set('message');
+  }
+
+  selectPayCard() {
+    this.paymentMessageTarget.set('card_terminal');
+    this.paymentOptionsStep.set('message');
+  }
+
+  selectCallWaiter() {
+    this.paymentMessageTarget.set('waiter');
+    this.paymentOptionsStep.set('message');
+  }
+
+  submitPaymentRequest() {
+    const target = this.paymentMessageTarget();
+    const message = this.paymentMessage().trim() || undefined;
+    this.paymentRequestSending.set(true);
+
+    if (target === 'waiter') {
+      this.api.callWaiter(this.tableToken, message).subscribe({
+        next: () => {
+          this.paymentRequestSending.set(false);
+          this.paymentOptionsStep.set('success');
+          this.paymentRequestSuccess.set(true);
+          // Cooldown to prevent spamming
+          this.waiterCallCooldown.set(true);
+          setTimeout(() => this.waiterCallCooldown.set(false), 30000);
+        },
+        error: (err) => {
+          this.paymentRequestSending.set(false);
+          alert(err.error?.detail || 'Failed to call waiter.');
+        }
+      });
+    } else if (target === 'cash' || target === 'card_terminal') {
+      this.api.requestPayment(this.tableToken, this.currentOrderId, target, message).subscribe({
+        next: () => {
+          this.paymentRequestSending.set(false);
+          this.paymentOptionsStep.set('success');
+          this.paymentRequestSuccess.set(true);
+        },
+        error: (err) => {
+          this.paymentRequestSending.set(false);
+          alert(err.error?.detail || 'Failed to request payment.');
+        }
+      });
+    }
+  }
+
+  closePaymentOptions() {
+    this.showPaymentOptions.set(false);
+    this.paymentMessage.set('');
+    this.paymentMessageTarget.set(null);
+  }
+
+  backToPaymentOptions() {
+    this.paymentOptionsStep.set('choose');
+    this.paymentMessage.set('');
+    this.paymentMessageTarget.set(null);
+  }
+
+  // --- Stripe flow (existing, now triggered from payment options) ---
+
+  private async doStripeCheckout() {
+    // Verify Stripe publishable key is configured before proceeding
+    const stripeKey = this.api.getStripePublishableKey();
+    if (!stripeKey) {
+      this.paymentRequestSending.set(false);
+      alert('Online payments are not configured. Please ask staff for assistance.');
+      return;
+    }
+    this.processingPayment.set(true);
+    // Reset stale state from previous attempts
+    this.paymentSuccess.set(false);
+    this.cardError.set('');
+    this.api.createPaymentIntent(this.currentOrderId, this.tableToken).subscribe({
+      next: async (response: any) => {
+        this.clientSecret = response.client_secret;
+        this.paymentIntentId = response.payment_intent_id;
+        this.paymentAmount.set(response.amount);
+        this.processingPayment.set(false);
+        this.paymentRequestSending.set(false);
+        // Close payment options and show stripe modal
+        this.showPaymentOptions.set(false);
+        this.showPaymentModal.set(true);
+        await this.loadStripe();
+      },
+      error: (err) => {
+        this.processingPayment.set(false);
+        this.paymentRequestSending.set(false);
+        alert(err.error?.detail || 'Failed to create payment');
+      }
+    });
+  }
+
+  async loadStripe() {
+    if (this.stripe) {
+      this.mountCard();
+      return;
+    }
+    // Check if Stripe.js is already available globally
+    if ((window as any).Stripe) {
+      this.stripe = (window as any).Stripe(this.api.getStripePublishableKey());
+      this.mountCard();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://js.stripe.com/v3/';
+    script.onload = () => {
+      this.stripe = (window as any).Stripe(this.api.getStripePublishableKey());
+      this.mountCard();
+    };
+    script.onerror = () => {
+      this.cardError.set('Failed to load payment system. Please check your connection and try again.');
+    };
+    document.head.appendChild(script);
+  }
+
+  mountCard() {
+    if (!this.stripe) return;
+    const elements = this.stripe.elements();
+    this.cardElement = elements.create('card', {
+      style: {
+        base: {
+          fontSize: '16px',
+          color: '#1C1917',
+          '::placeholder': { color: '#78716C' }
+        }
+      }
+    });
+    // Retry mounting until the DOM element is available (Angular may need a tick to render)
+    const tryMount = (attempts: number) => {
+      const container = document.getElementById('card-element');
+      if (container) {
+        container.innerHTML = '';
+        this.cardElement.mount('#card-element');
+        this.cardElement.on('change', (e: any) => this.cardError.set(e.error ? e.error.message : ''));
+      } else if (attempts > 0) {
+        setTimeout(() => tryMount(attempts - 1), 150);
+      } else {
+        this.cardError.set('Could not load card input. Please close and try again.');
+      }
+    };
+    setTimeout(() => tryMount(5), 100);
+  }
+
+  async processPayment() {
+    if (!this.stripe || !this.cardElement) return;
+    this.processingPayment.set(true);
+    this.cardError.set('');
+    const { error, paymentIntent } = await this.stripe.confirmCardPayment(this.clientSecret, {
+      payment_method: { card: this.cardElement }
+    });
+        if (error) {
+      this.cardError.set(error.message);
+      this.processingPayment.set(false);
+    } else if (paymentIntent.status === 'succeeded') {
+      this.api.confirmPayment(this.currentOrderId, this.tableToken, this.paymentIntentId).subscribe({
+        next: () => {
+          this.processingPayment.set(false);
+          this.paymentSuccess.set(true);
+          this.loadStoredOrders();
+          this.loadOrderHistory();
+        },
+        error: () => {
+          this.processingPayment.set(false);
+          this.cardError.set('Payment confirmed but failed to update order.');
+        }
+      });
+    }
+  }
+
+  cancelPayment() {
+    this.showPaymentModal.set(false);
+    this.cardError.set('');
+    this.paymentSuccess.set(false);
+    document.body.style.overflow = '';
+  }
+
+  finishPayment() {
+    this.showPaymentModal.set(false);
+    this.paymentSuccess.set(false);
+    document.body.style.overflow = '';
+    this.loadStoredOrders();
+  }
+}

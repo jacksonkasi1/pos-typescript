@@ -1,0 +1,4598 @@
+import { Component, inject, signal, OnInit, OnDestroy } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import {
+  ApiService,
+  PersonalProviderPatch,
+  Provider,
+  ProviderCreate,
+  ProviderProduct,
+  ProviderProductCreate,
+  Tax,
+  TenantSettings,
+  DEFAULT_TENANT_UI_MODULES,
+  TenantUiModuleKey,
+  OpeningHoursBaselineRow,
+  OpeningHoursOverrideRow,
+} from '../services/api.service';
+import { SidebarComponent } from '../shared/sidebar.component';
+import { FocusFirstInputDirective } from '../shared/focus-first-input.directive';
+import { TranslationsComponent } from '../translations/translations.component';
+import { KitchenStationsSettingsComponent } from './kitchen-stations-settings.component';
+import { LoyaltySettingsComponent } from './loyalty-settings.component';
+import { PrintSettingsComponent } from './print-settings.component';
+import { PromoSettingsComponent } from './promo-settings.component';
+import { RestaurantGroupSettingsComponent } from './restaurant-group-settings.component';
+import { DeliveryIntegrationsSettingsComponent } from './delivery-integrations-settings.component';
+import { SocialPostsSettingsComponent } from './social-posts-settings.component';
+import { ContractTemplatesSettingsComponent } from './contract-templates-settings.component';
+import { PermissionService } from '../services/permission.service';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { MAX_IMAGE_UPLOAD_BYTES, MAX_IMAGE_UPLOAD_MB } from '../shared/image-upload-limits';
+
+@Component({
+  selector: 'app-settings',
+  standalone: true,
+  imports: [
+    CommonModule,
+    FormsModule,
+    SidebarComponent,
+    FocusFirstInputDirective,
+    TranslateModule,
+    TranslationsComponent,
+    KitchenStationsSettingsComponent,
+    LoyaltySettingsComponent,
+    PrintSettingsComponent,
+    PromoSettingsComponent,
+    RestaurantGroupSettingsComponent,
+    DeliveryIntegrationsSettingsComponent,
+    ContractTemplatesSettingsComponent,
+    SocialPostsSettingsComponent,
+  ],
+  template: `
+    <app-sidebar>
+      <div class="page-header">
+        <h1>{{ 'SETTINGS.TITLE' | translate }}</h1>
+      </div>
+
+      <!-- Tab Navigation - Mobile First (horizontal scrollable tabs) -->
+      <div class="tabs-container">
+        <div class="tabs">
+          <button 
+            type="button" 
+            class="tab" 
+            [class.active]="activeSection() === 'general'"
+            (click)="activeSection.set('general')">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"/>
+              <rect x="14" y="3" width="7" height="7"/>
+              <rect x="14" y="14" width="7" height="7"/>
+              <rect x="3" y="14" width="7" height="7"/>
+            </svg>
+            <span>{{ 'SETTINGS.BUSINESS_PROFILE' | translate }}</span>
+          </button>
+
+          <button
+            type="button"
+            class="tab"
+            data-testid="settings-navigation-tab"
+            [class.active]="activeSection() === 'navigation'"
+            (click)="activeSection.set('navigation')">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 6h16M4 12h16M4 18h10"/>
+            </svg>
+            <span>{{ 'SETTINGS.NAVIGATION_UI_TAB' | translate }}</span>
+          </button>
+          
+          <button 
+            type="button" 
+            class="tab" 
+            data-testid="settings-contact-tab"
+            [class.active]="activeSection() === 'contact'"
+            (click)="activeSection.set('contact')">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/>
+            </svg>
+            <span>{{ 'SETTINGS.CONTACT_INFO' | translate }}</span>
+          </button>
+          
+          <button 
+            type="button" 
+            class="tab" 
+            [class.active]="activeSection() === 'hours'"
+            (click)="activeSection.set('hours')">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <span>{{ 'SETTINGS.OPENING_HOURS' | translate }}</span>
+          </button>
+          
+          <button 
+            type="button" 
+            class="tab" 
+            data-testid="settings-payments-tab"
+            [class.active]="activeSection() === 'payments'"
+            (click)="activeSection.set('payments')">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+              <line x1="1" y1="10" x2="23" y2="10"/>
+            </svg>
+            <span>{{ 'SETTINGS.PAYMENT_SETTINGS' | translate }}</span>
+          </button>
+          
+          <button 
+            type="button" 
+            class="tab" 
+            [class.active]="activeSection() === 'email'"
+            (click)="activeSection.set('email')">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+            <span>{{ 'SETTINGS.EMAIL_SETTINGS' | translate }}</span>
+          </button>
+          <button 
+            type="button" 
+            class="tab" 
+            [class.active]="activeSection() === 'reservations'"
+            (click)="activeSection.set('reservations')">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            <span>{{ 'SETTINGS.RESERVATIONS' | translate }}</span>
+          </button>
+          @if (contractTemplatesTabVisible()) {
+          <button
+            type="button"
+            class="tab"
+            data-testid="settings-contract-templates-tab"
+            [class.active]="activeSection() === 'contract-templates'"
+            (click)="activeSection.set('contract-templates')">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>
+            <span>{{ 'SETTINGS.CONTRACT_TEMPLATES_TAB' | translate }}</span>
+          </button>
+          }
+          
+          <button 
+            type="button" 
+            class="tab" 
+            [class.active]="activeSection() === 'taxes'"
+            (click)="activeSection.set('taxes'); loadTaxesAll()">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+            </svg>
+            <span>{{ 'SETTINGS.TAXES' | translate }}</span>
+          </button>
+          @if (settingsModuleTabVisible('kitchen_bar')) {
+          <button
+            type="button"
+            class="tab"
+            data-testid="settings-kitchen-stations-tab"
+            [class.active]="activeSection() === 'kitchen-stations'"
+            (click)="activeSection.set('kitchen-stations')">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="8" width="7" height="13" rx="1"/>
+            </svg>
+            <span>{{ 'SETTINGS.KITCHEN_STATIONS_TAB' | translate }}</span>
+          </button>
+          }
+          <button
+            type="button"
+            class="tab"
+            data-testid="settings-loyalty-tab"
+            [class.active]="activeSection() === 'loyalty'"
+            (click)="activeSection.set('loyalty')">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/>
+            </svg>
+            <span>{{ 'SETTINGS.LOYALTY_TAB' | translate }}</span>
+          </button>
+
+          <button
+            type="button"
+            class="tab"
+            data-testid="settings-printing-tab"
+            [class.active]="activeSection() === 'printing'"
+            (click)="activeSection.set('printing')">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 6 2 18 2 18 9"/>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+              <rect x="6" y="14" width="12" height="8"/>
+            </svg>
+            <span>{{ 'SETTINGS.PRINTING_TAB' | translate }}</span>
+          </button>
+          <button
+            type="button"
+            class="tab"
+            data-testid="settings-promos-tab"
+            [class.active]="activeSection() === 'promos'"
+            (click)="activeSection.set('promos')">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
+              <line x1="7" y1="7" x2="7.01" y2="7"/>
+            </svg>
+            <span>{{ 'SETTINGS.PROMOS_TAB' | translate }}</span>
+          </button>
+          <button
+            type="button"
+            class="tab"
+            data-testid="settings-delivery-integrations-tab"
+            [class.active]="activeSection() === 'delivery-integrations'"
+            (click)="activeSection.set('delivery-integrations')">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+            </svg>
+            <span>{{ 'SETTINGS.DELIVERY_INTEGRATIONS_TAB' | translate }}</span>
+          </button>
+          <button
+            type="button"
+            class="tab"
+            data-testid="settings-social-posts-tab"
+            [class.active]="activeSection() === 'social-posts'"
+            (click)="activeSection.set('social-posts')"
+          >
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 4h16v12H4z M8 20h8M12 16v4"/>
+              <circle cx="9" cy="9" r="1.5"/><circle cx="15" cy="9" r="1.5"/><path d="M9 13h6"/>
+            </svg>
+            <span>{{ 'SETTINGS.SOCIAL_POSTS_TAB' | translate }}</span>
+          </button>
+          @if (settingsModuleTabVisible('providers')) {
+          <button 
+            type="button" 
+            class="tab" 
+            data-testid="settings-providers-tab"
+            [class.active]="activeSection() === 'providers'"
+            (click)="activeSection.set('providers'); loadProviders()">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+            <span>{{ 'SETTINGS.PROVIDERS' | translate }}</span>
+          </button>
+          }
+          <button 
+            type="button" 
+            class="tab" 
+            [class.active]="activeSection() === 'translations'"
+            (click)="activeSection.set('translations')">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="2" y1="12" x2="22" y2="12"/>
+              <path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/>
+            </svg>
+            <span>{{ 'SETTINGS.TRANSLATIONS_TITLE' | translate }}</span>
+          </button>
+          <button 
+            type="button" 
+            class="tab" 
+            [class.active]="activeSection() === 'security'"
+            (click)="activeSection.set('security'); loadOtpStatus()">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0110 0v4"/>
+            </svg>
+            <span>{{ 'SETTINGS.SECURITY' | translate }}</span>
+          </button>
+          @if (isTenantOwnerOrAdmin()) {
+          <button
+            type="button"
+            class="tab"
+            data-testid="settings-restaurant-group-tab"
+            [class.active]="activeSection() === 'restaurant-group'"
+            (click)="activeSection.set('restaurant-group')">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+              <polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+            <span>{{ 'SETTINGS.RESTAURANT_GROUP_TAB' | translate }}</span>
+          </button>
+          }
+          @if (isTenantOwner()) {
+          <button
+            type="button"
+            class="tab"
+            data-testid="settings-data-privacy-tab"
+            [class.active]="activeSection() === 'data-privacy'"
+            (click)="activeSection.set('data-privacy')">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <span>{{ 'SETTINGS.DATA_AND_PRIVACY_TAB' | translate }}</span>
+          </button>
+          }
+        </div>
+      </div>
+
+      <div class="content">
+        @if (loading()) {
+          <div class="loading-state">
+            <div class="spinner"></div>
+            <p>{{ 'SETTINGS.LOADING_SETTINGS' | translate }}</p>
+          </div>
+        } @else if (activeSection() === 'navigation') {
+          <div class="section" data-testid="settings-navigation-section">
+            <div class="section-header">
+              <h2>{{ 'SETTINGS.UI_MODULES_TITLE' | translate }}</h2>
+              <p>{{ 'SETTINGS.UI_MODULES_HINT' | translate }}</p>
+            </div>
+            <form (ngSubmit)="saveSettings()" class="settings-form">
+              @for (row of uiModuleRows; track row.key) {
+                <div class="form-group checkbox-row">
+                  <label class="switch">
+                    <input
+                      type="checkbox"
+                      [id]="'ui_mod_' + row.key"
+                      [(ngModel)]="formData.ui_modules![row.key]"
+                      [name]="'ui_mod_' + row.key"
+                    />
+                    <span class="slider round"></span>
+                  </label>
+                  <div>
+                    <label class="check-label" [attr.for]="'ui_mod_' + row.key">{{ row.labelKey | translate }}</label>
+                    <p class="hint">{{ row.descKey | translate }}</p>
+                  </div>
+                </div>
+              }
+              <div class="form-actions">
+                <button type="button" class="btn btn-secondary" (click)="cancel()">{{ 'SETTINGS.CANCEL' | translate }}</button>
+                <button type="submit" class="btn btn-primary" [disabled]="saving()">
+                  {{ saving() ? ('SETTINGS.SAVING' | translate) : ('SETTINGS.SAVE_CHANGES' | translate) }}
+                </button>
+              </div>
+              @if (error()) {
+                <div class="toast error">
+                  <span>{{ error() }}</span>
+                  <button type="button" class="toast-close" (click)="error.set(null)" aria-label="Dismiss">×</button>
+                </div>
+              }
+              @if (success()) {
+                <div class="toast success">
+                  <span>{{ success() }}</span>
+                  <button type="button" class="toast-close" (click)="dismissSuccessToast()" aria-label="Dismiss">×</button>
+                </div>
+              }
+            </form>
+          </div>
+        } @else if (activeSection() === 'taxes') {
+          <!-- Taxes (IVA) Section -->
+          <div class="section">
+            <div class="section-header">
+              <h2>{{ 'SETTINGS.TAXES' | translate }}</h2>
+              <p>{{ 'SETTINGS.TAXES_SUBTITLE' | translate }}</p>
+            </div>
+            <div class="taxes-list">
+              <table class="settings-table">
+                <thead>
+                  <tr>
+                    <th>{{ 'SETTINGS.TAX_NAME' | translate }}</th>
+                    <th>{{ 'SETTINGS.TAX_RATE' | translate }}</th>
+                    <th>{{ 'SETTINGS.TAX_VALID_FROM' | translate }}</th>
+                    <th>{{ 'SETTINGS.TAX_VALID_TO' | translate }}</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (t of taxes(); track t.id) {
+                    <tr>
+                      <td>{{ t.name }}</td>
+                      <td>{{ t.rate_percent }}%</td>
+                      <td>{{ t.valid_from }}</td>
+                      <td>{{ t.valid_to || '—' }}</td>
+                      <td>
+                        <button type="button" class="btn btn-sm btn-secondary" (click)="deleteTax(t.id)" [disabled]="settings()?.default_tax_id === t.id">
+                          {{ 'COMMON.DELETE' | translate }}
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            <div class="form-card" style="margin-top: 1rem;">
+              <h3>{{ 'SETTINGS.ADD_TAX' | translate }}</h3>
+              <form (ngSubmit)="addTax()" class="form-inline">
+                <input type="text" [(ngModel)]="newTaxName" name="newTaxName" [placeholder]="'SETTINGS.TAX_NAME_PLACEHOLDER' | translate" required />
+                <input type="number" min="0" max="100" [(ngModel)]="newTaxRate" name="newTaxRate" placeholder="10" style="width: 4rem;" />
+                <span>%</span>
+                <input type="date" [(ngModel)]="newTaxValidFrom" name="newTaxValidFrom" required />
+                <input type="date" [(ngModel)]="newTaxValidTo" name="newTaxValidTo" placeholder="Optional" />
+                <button type="submit" class="btn btn-primary">{{ 'SETTINGS.ADD_TAX_BUTTON' | translate }}</button>
+              </form>
+              @if (taxError()) {
+                <p class="field-error">{{ taxError() }}</p>
+              }
+            </div>
+          </div>
+        } @else if (activeSection() === 'providers') {
+          <!-- Providers Section -->
+          <div class="section" data-testid="settings-providers-section">
+            <div class="section-header">
+              <h2>{{ 'SETTINGS.PROVIDERS' | translate }}</h2>
+              <p>{{ 'SETTINGS.PROVIDERS_SUBTITLE' | translate }}</p>
+            </div>
+            @if (providersLoading()) {
+              <div class="loading-state"><div class="spinner"></div><p>{{ 'SETTINGS.LOADING_SETTINGS' | translate }}</p></div>
+            } @else {
+              <div class="form-card" style="margin-bottom: 1rem;">
+                <button type="button" class="btn btn-primary" data-testid="settings-add-provider-btn" (click)="openAddProviderModal()">{{ 'SETTINGS.ADD_PROVIDER' | translate }}</button>
+              </div>
+              <table class="settings-table">
+                <thead>
+                  <tr>
+                    <th>{{ 'SETTINGS.PROVIDER_NAME' | translate }}</th>
+                    <th>{{ 'SETTINGS.PROVIDER_TYPE' | translate }}</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (p of providers(); track p.id) {
+                    <tr>
+                      <td>{{ p.name }}</td>
+                      <td>{{ isOwnProvider(p) ? ('SETTINGS.PROVIDER_PERSONAL' | translate) : ('SETTINGS.PROVIDER_CATALOG' | translate) }}</td>
+                      <td>
+                        @if (isOwnProvider(p)) {
+                          <button type="button" class="btn btn-sm btn-secondary" (click)="openEditProviderModal(p)" data-testid="settings-edit-provider-btn">{{ 'SETTINGS.EDIT_PROVIDER' | translate }}</button>
+                          <button type="button" class="btn btn-sm btn-secondary" (click)="openAddProductModal(p)" style="margin-left: 0.25rem;">{{ 'SETTINGS.ADD_PRODUCT_TO_PROVIDER' | translate }}</button>
+                          <button type="button" class="btn btn-sm btn-secondary" (click)="toggleProviderProducts(p)" style="margin-left: 0.25rem;">
+                            {{ (p.id != null && providerProductsExpanded().has(p.id)) ? ('SETTINGS.HIDE_PRODUCTS' | translate) : ('SETTINGS.SHOW_PRODUCTS' | translate) }}
+                          </button>
+                        }
+                      </td>
+                    </tr>
+                    @if (isOwnProvider(p) && p.id != null && providerProductsExpanded().has(p.id)) {
+                      <tr>
+                        <td colspan="3" style="padding-left: 1.5rem;">
+                          @if ((providerProductsMap()[p.id] || []).length === 0) {
+                            <span class="hint">{{ 'SETTINGS.NO_PRODUCTS_YET' | translate }}</span>
+                          } @else {
+                            <ul class="provider-products-list">
+                              @for (prod of providerProductsMap()[p.id] || []; track prod.id) {
+                                <li>{{ prod.name }} – {{ formatProviderPrice(prod.price_cents) }}</li>
+                              }
+                            </ul>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  }
+                </tbody>
+              </table>
+              @if (providersError()) {
+                <p class="field-error">{{ providersError() }}</p>
+              }
+            }
+          </div>
+          <!-- Add Provider Modal -->
+          @if (showAddProviderModal()) {
+            <div class="modal-overlay">
+              <div class="modal-content" (click)="$event.stopPropagation()" appFocusFirstInput>
+                <div class="modal-header">
+                  <h3>{{ 'SETTINGS.ADD_PROVIDER' | translate }}</h3>
+                  <button type="button" class="btn-icon" (click)="closeAddProviderModal()">×</button>
+                </div>
+                <form (ngSubmit)="saveProvider()">
+                  <div class="modal-body">
+                    <div class="form-group">
+                      <label for="newProviderName">{{ 'SETTINGS.PROVIDER_NAME' | translate }} *</label>
+                      <input id="newProviderName" type="text" [(ngModel)]="newProviderName" name="newProviderName" required />
+                    </div>
+                    <div class="form-group">
+                      <label for="newProviderPhone">{{ 'SETTINGS.PROVIDER_PHONE' | translate }}</label>
+                      <input id="newProviderPhone" type="text" [(ngModel)]="newProviderPhone" name="newProviderPhone" />
+                    </div>
+                    <div class="form-group">
+                      <label for="newProviderEmail">{{ 'SETTINGS.PROVIDER_EMAIL' | translate }}</label>
+                      <input id="newProviderEmail" type="email" [(ngModel)]="newProviderEmail" name="newProviderEmail" />
+                    </div>
+                    @if (providerError()) {
+                      <p class="field-error">{{ providerError() }}</p>
+                    }
+                  </div>
+                  <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" (click)="closeAddProviderModal()">{{ 'COMMON.CANCEL' | translate }}</button>
+                    <button type="submit" class="btn btn-primary">{{ 'COMMON.SAVE' | translate }}</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          }
+          <!-- Edit Personal Provider Modal -->
+          @if (showEditProviderModal()) {
+            <div class="modal-overlay">
+              <div class="modal-content" (click)="$event.stopPropagation()" appFocusFirstInput>
+                <div class="modal-header">
+                  <h3>{{ 'SETTINGS.EDIT_PROVIDER' | translate }}</h3>
+                  <button type="button" class="btn-icon" (click)="closeEditProviderModal()">×</button>
+                </div>
+                <form (ngSubmit)="saveEditedProvider()">
+                  <div class="modal-body">
+                    <div class="form-group">
+                      <label for="editProviderName">{{ 'SETTINGS.PROVIDER_NAME' | translate }} *</label>
+                      <input id="editProviderName" type="text" [(ngModel)]="editProviderName" name="editProviderName" required />
+                    </div>
+                    <div class="form-group">
+                      <label for="editProviderUrl">{{ 'SETTINGS.PROVIDER_URL_OPTIONAL' | translate }}</label>
+                      <input id="editProviderUrl" type="text" [(ngModel)]="editProviderUrl" name="editProviderUrl" />
+                    </div>
+                    <div class="form-group">
+                      <label for="editProviderPhone">{{ 'SETTINGS.PROVIDER_PHONE' | translate }}</label>
+                      <input id="editProviderPhone" type="text" [(ngModel)]="editProviderPhone" name="editProviderPhone" />
+                    </div>
+                    <div class="form-group">
+                      <label for="editProviderEmail">{{ 'SETTINGS.PROVIDER_EMAIL' | translate }}</label>
+                      <input id="editProviderEmail" type="email" [(ngModel)]="editProviderEmail" name="editProviderEmail" />
+                    </div>
+                    <div class="form-group checkbox-small">
+                      <input id="editProviderActive" type="checkbox" [(ngModel)]="editProviderActive" name="editProviderActive" />
+                      <label for="editProviderActive">{{ 'SETTINGS.PROVIDER_ACTIVE' | translate }}</label>
+                    </div>
+                    @if (editProviderError()) {
+                      <p class="field-error">{{ editProviderError() }}</p>
+                    }
+                  </div>
+                  <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" (click)="closeEditProviderModal()">{{ 'COMMON.CANCEL' | translate }}</button>
+                    <button type="submit" class="btn btn-primary">{{ 'COMMON.SAVE' | translate }}</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          }
+          <!-- Add Product to Provider Modal -->
+          @if (showAddProductModal()) {
+            <div class="modal-overlay">
+              <div class="modal-content" (click)="$event.stopPropagation()" appFocusFirstInput>
+                <div class="modal-header">
+                  <h3>{{ 'SETTINGS.ADD_PRODUCT_TO_PROVIDER' | translate }} – {{ selectedProviderForProduct()?.name }}</h3>
+                  <button type="button" class="btn-icon" (click)="closeAddProductModal()">×</button>
+                </div>
+                <form (ngSubmit)="saveProviderProduct()">
+                  <div class="modal-body">
+                    <div class="form-group">
+                      <label for="newProductName">{{ 'SETTINGS.PRODUCT_NAME' | translate }} *</label>
+                      <input id="newProductName" type="text" [(ngModel)]="newProductName" name="newProductName" required />
+                    </div>
+                    <div class="form-group">
+                      <label for="newProductPrice">{{ 'SETTINGS.PRODUCT_PRICE_CENTS' | translate }}</label>
+                      <input id="newProductPrice" type="number" min="0" [(ngModel)]="newProductPrice" name="newProductPrice" placeholder="0" />
+                    </div>
+                    <div class="form-group">
+                      <label for="newProductCategory">{{ 'SETTINGS.PRODUCT_CATEGORY_OPTIONAL' | translate }}</label>
+                      <input id="newProductCategory" type="text" [(ngModel)]="newProductCategory" name="newProductCategory" placeholder="e.g. Supplies" />
+                    </div>
+                    <div class="form-group checkbox-small">
+                      <input id="newProductOnSale" type="checkbox" [(ngModel)]="newProductOnSale" name="newProductOnSale" />
+                      <label for="newProductOnSale">{{ 'SETTINGS.PRODUCT_ON_SALE' | translate }}</label>
+                    </div>
+                    @if (providerProductError()) {
+                      <p class="field-error">{{ providerProductError() }}</p>
+                    }
+                  </div>
+                  <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" (click)="closeAddProductModal()">{{ 'COMMON.CANCEL' | translate }}</button>
+                    <button type="submit" class="btn btn-primary">{{ 'COMMON.SAVE' | translate }}</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          }
+        } @else if (activeSection() === 'restaurant-group') {
+          <app-restaurant-group-settings />
+        } @else if (activeSection() === 'kitchen-stations') {
+          <app-kitchen-stations-settings />
+        } @else if (activeSection() === 'loyalty') {
+          <app-loyalty-settings />
+        } @else if (activeSection() === 'printing') {
+          <app-print-settings />
+        } @else if (activeSection() === 'promos') {
+          <app-promo-settings />
+        } @else if (activeSection() === 'delivery-integrations') {
+          <app-delivery-integrations-settings />
+        } @else if (activeSection() === 'social-posts') {
+          <app-social-posts-settings />
+        } @else if (activeSection() === 'contract-templates') {
+          <app-contract-templates-settings />
+        } @else if (activeSection() === 'translations') {
+          <!-- Translations Section (Independent) -->
+            <div class="section">
+              <div class="section-header">
+                <h2>{{ 'SETTINGS.TRANSLATIONS_TITLE' | translate }}</h2>
+                <p>{{ 'SETTINGS.TRANSLATIONS_SUBTITLE' | translate }}</p>
+              </div>
+              <app-translations></app-translations>
+            </div>
+          } @else if (activeSection() === 'security') {
+          <!-- Security (OTP) Section -->
+          <div class="section" data-testid="settings-security-section">
+            <div class="section-header">
+              <h2>{{ 'SETTINGS.SECURITY' | translate }}</h2>
+              <p>{{ 'SETTINGS.SECURITY_SUBTITLE' | translate }}</p>
+            </div>
+            @if (otpStatusLoading()) {
+              <div class="loading-state"><div class="spinner"></div><p>{{ 'SETTINGS.LOADING_SETTINGS' | translate }}</p></div>
+            } @else if (otpSetupResult()) {
+              <div class="form-card">
+                <h3>{{ 'SETTINGS.OTP_SCAN_OR_ENTER' | translate }}</h3>
+                <p class="hint">{{ 'SETTINGS.OTP_ADD_TO_APP' | translate }}</p>
+                <div class="otp-secret-row">
+                  <code class="otp-secret">{{ otpSetupResult()?.secret }}</code>
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="copyOtpSecret()">{{ 'COMMON.COPY' | translate }}</button>
+                </div>
+                <div class="form-group" style="margin-top: 1rem;">
+                  <label for="otp-confirm-code">{{ 'SETTINGS.OTP_ENTER_CODE' | translate }}</label>
+                  <input id="otp-confirm-code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" [(ngModel)]="otpConfirmCode" name="otpConfirmCode" [placeholder]="'SETTINGS.OTP_CODE_PLACEHOLDER' | translate" />
+                  <button type="button" class="btn btn-primary" (click)="confirmOtpEnable()" [disabled]="!otpConfirmCode || otpConfirmCode.length !== 6 || otpConfirming()">
+                    {{ otpConfirming() ? ('SETTINGS.OTP_CONFIRMING' | translate) : ('SETTINGS.OTP_ENABLE' | translate) }}
+                  </button>
+                  <button type="button" class="btn btn-secondary" (click)="cancelOtpSetup()">{{ 'COMMON.CANCEL' | translate }}</button>
+                </div>
+                @if (otpError()) {
+                  <p class="field-error">{{ otpError() }}</p>
+                }
+              </div>
+            } @else if (otpStatus()?.otp_enabled) {
+              <div class="form-card">
+                <p class="otp-enabled-msg">{{ 'SETTINGS.OTP_ENABLED' | translate }}</p>
+                <div class="form-group">
+                  <label for="otp-disable-code">{{ 'SETTINGS.OTP_DISABLE_ENTER_CODE' | translate }}</label>
+                  <input id="otp-disable-code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" [(ngModel)]="otpDisableCode" name="otpDisableCode" [placeholder]="'SETTINGS.OTP_CODE_PLACEHOLDER' | translate" />
+                  <button type="button" class="btn btn-secondary" (click)="disableOtp()" [disabled]="!otpDisableCode || otpDisableCode.length !== 6 || otpDisabling()">
+                    {{ otpDisabling() ? ('SETTINGS.OTP_DISABLING' | translate) : ('SETTINGS.OTP_DISABLE' | translate) }}
+                  </button>
+                </div>
+                @if (otpError()) {
+                  <p class="field-error">{{ otpError() }}</p>
+                }
+              </div>
+            } @else {
+              <div class="form-card">
+                <p class="hint">{{ 'SETTINGS.OTP_DESCRIPTION' | translate }}</p>
+                <button type="button" class="btn btn-primary" (click)="startOtpSetup()" [disabled]="otpSettingUp()">
+                  {{ otpSettingUp() ? ('SETTINGS.OTP_SETTING_UP' | translate) : ('SETTINGS.OTP_ENABLE_BUTTON' | translate) }}
+                </button>
+                @if (otpError()) {
+                  <p class="field-error">{{ otpError() }}</p>
+                }
+              </div>
+            }
+            <div class="form-card clock-qr-card" style="margin-top: 1.5rem;" data-testid="settings-clock-qr-card">
+              <h3>{{ 'SETTINGS.CLOCK_QR_TITLE' | translate }}</h3>
+              <p class="hint">{{ 'SETTINGS.CLOCK_QR_DESC' | translate }}</p>
+              @if (settings()?.clock_qr_active) {
+                <p class="muted">{{ 'SETTINGS.CLOCK_QR_ACTIVE' | translate }}</p>
+              } @else {
+                <p class="muted">{{ 'SETTINGS.CLOCK_QR_OFF' | translate }}</p>
+              }
+              @if (settings()?.clock_qr_active && settings()?.clock_qr_downloadable === false) {
+                <p class="hint" style="margin-top: 0.5rem;">{{ 'SETTINGS.CLOCK_QR_LEGACY_REGENERATE_HINT' | translate }}</p>
+              }
+              <div class="form-group checkbox-row" style="margin-top: 1rem;">
+                <label class="switch">
+                  <input
+                    type="checkbox"
+                    [(ngModel)]="formData.clock_qr_location_verify"
+                    name="clock_qr_location_verify"
+                    (change)="saveClockQrLocationVerify()"
+                  />
+                  <span class="slider round"></span>
+                </label>
+                <div>
+                  <span class="check-label">{{ 'SETTINGS.CLOCK_QR_LOCATION_VERIFY' | translate }}</span>
+                  <p class="hint">{{ 'SETTINGS.CLOCK_QR_LOCATION_VERIFY_HINT' | translate }}</p>
+                </div>
+              </div>
+              <div class="form-actions" style="margin-top: 1rem;">
+                <button type="button" class="btn btn-primary" (click)="regenerateClockQr()" [disabled]="clockQrBusy()">
+                  {{ 'SETTINGS.CLOCK_QR_REGENERATE' | translate }}
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-secondary"
+                  (click)="disableClockQr()"
+                  [disabled]="clockQrBusy() || !settings()?.clock_qr_active">
+                  {{ 'SETTINGS.CLOCK_QR_DISABLE' | translate }}
+                </button>
+              </div>
+              @if (clockQrTokenLoading()) {
+                <p class="hint" style="margin-top: 1rem;">{{ 'SETTINGS.CLOCK_QR_TOKEN_LOADING' | translate }}</p>
+              } @else if (clockQrLastToken()) {
+                <p class="hint" style="margin-top: 1rem;">{{ 'SETTINGS.CLOCK_QR_URL_HINT' | translate }}</p>
+                <code class="otp-secret" style="word-break: break-all;">{{ clockQrLastToken() }}</code>
+                <div class="clock-qr-token-actions" style="margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="copyClockQrToken()">{{ 'COMMON.COPY' | translate }}</button>
+                  @if (settings()?.clock_qr_active) {
+                    <button
+                      type="button"
+                      class="btn btn-secondary btn-sm"
+                      data-testid="settings-download-clock-qr-png"
+                      (click)="downloadClockQrForPrinting()"
+                      [disabled]="clockQrDownloadBusy()">
+                      {{ clockQrDownloadBusy() ? ('COMMON.LOADING' | translate) : ('SETTINGS.CLOCK_QR_DOWNLOAD_PRINT' | translate) }}
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+          } @else if (activeSection() === 'data-privacy') {
+          <div class="section" data-testid="settings-data-privacy-section">
+            <div class="section-header">
+              <h2>{{ 'SETTINGS.DATA_EXPORT_TITLE' | translate }}</h2>
+              <p>{{ 'SETTINGS.DATA_EXPORT_DESC' | translate }}</p>
+            </div>
+            <div class="form-card data-export-card">
+              <button
+                type="button"
+                class="btn btn-primary"
+                data-testid="settings-download-export"
+                (click)="downloadTenantDataExport()"
+                [disabled]="dataExporting()">
+                {{ dataExporting() ? ('SETTINGS.DATA_EXPORTING' | translate) : ('SETTINGS.DATA_EXPORT_BUTTON' | translate) }}
+              </button>
+            </div>
+            <div class="danger-zone">
+              <h2>{{ 'SETTINGS.DANGER_ZONE_TITLE' | translate }}</h2>
+              <p class="danger-lede">{{ 'SETTINGS.DANGER_ZONE_DESC' | translate }}</p>
+              <div class="form-group">
+                <label for="purge-confirm-name">{{ 'SETTINGS.PURGE_CONFIRM_LABEL' | translate }}</label>
+                <input
+                  id="purge-confirm-name"
+                  type="text"
+                  name="purgeConfirmName"
+                  [(ngModel)]="purgeConfirmTenantName"
+                  [placeholder]="settings()?.name || ('SETTINGS.PURGE_PLACEHOLDER' | translate)"
+                  autocomplete="off"
+                  data-testid="settings-purge-confirm-input"
+                />
+              </div>
+              @if (purgeError()) {
+                <p class="field-error">{{ purgeError() }}</p>
+              }
+              <button
+                type="button"
+                class="btn btn-danger-outline"
+                data-testid="settings-purge-button"
+                (click)="purgeTenantForever()"
+                [disabled]="purging() || !purgeConfirmTenantName.trim()">
+                {{ purging() ? ('SETTINGS.PURGING' | translate) : ('SETTINGS.PURGE_BUTTON' | translate) }}
+              </button>
+            </div>
+          </div>
+          } @else {
+            <!-- Tenant Settings Sections (Shared Form) -->
+            <form (ngSubmit)="saveSettings()" class="settings-form">
+
+              <!-- General Section -->
+              @if (activeSection() === 'general') {
+                <div class="section">
+                  <div class="section-header">
+                    <h2>{{ 'SETTINGS.BUSINESS_PROFILE' | translate }}</h2>
+                    <p>{{ 'SETTINGS.SUBTITLE' | translate }}</p>
+                  </div>
+                  
+                  <!-- Logo -->
+                  <div class="form-group">
+                    <label>{{ 'SETTINGS.LOGO' | translate }}</label>
+                    <div class="logo-upload-wrapper">
+                      @if (logoPreview() || settings()?.logo_filename) {
+                        <div class="current-logo">
+                          <img [src]="getDisplayLogoSrc()" alt="Logo" />
+                          <button type="button" class="btn-icon-danger" (click)="removeLogo()" title="{{ 'SETTINGS.REMOVE_LOGO' | translate }}">✕</button>
+                        </div>
+                      }
+                      <div class="upload-controls">
+                        <input
+                          type="file"
+                          id="logo-upload"
+                          accept="image/jpeg,image/png,image/webp,image/avif,image/svg+xml,.svg"
+                          (change)="onLogoSelected($event)"
+                          hidden
+                        />
+                        <label for="logo-upload" class="btn btn-secondary">
+                          {{ 'SETTINGS.UPLOAD_LOGO' | translate }}
+                        </label>
+                        <span class="hint">{{ 'SETTINGS.UPLOAD_LOGO_HINT' | translate }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Header background image -->
+                  <div class="form-group">
+                    <label>{{ 'SETTINGS.HEADER_BACKGROUND' | translate }}</label>
+                    <div class="logo-upload-wrapper">
+                      @if (headerBackgroundPreview() || settings()?.header_background_filename) {
+                        <div class="current-logo header-bg-preview">
+                          <img [src]="getHeaderBackgroundDisplaySrc()" alt="Header background" />
+                          <button type="button" class="btn-icon-danger" (click)="removeHeaderBackground()" title="{{ 'SETTINGS.REMOVE_HEADER_BACKGROUND' | translate }}">✕</button>
+                        </div>
+                      }
+                      <div class="upload-controls">
+                        <input
+                          type="file"
+                          id="header-bg-upload"
+                          accept="image/jpeg,image/png,image/webp,image/avif"
+                          (change)="onHeaderBackgroundSelected($event)"
+                          hidden
+                        />
+                        <label for="header-bg-upload" class="btn btn-secondary">
+                          {{ 'SETTINGS.UPLOAD_HEADER_BACKGROUND' | translate }}
+                        </label>
+                        <span class="hint">{{ 'SETTINGS.HEADER_BACKGROUND_HINT' | translate }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Basic Info -->
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="name">{{ 'SETTINGS.BUSINESS_NAME' | translate }} *</label>
+                      <input type="text" id="name" [(ngModel)]="formData.name" name="name" required />
+                    </div>
+
+                    <div class="form-group">
+                      <label for="business_type">{{ 'SETTINGS.BUSINESS_TYPE' | translate }}</label>
+                      <select id="business_type" [(ngModel)]="formData.business_type" name="business_type">
+                        <option [value]="null">{{ 'SETTINGS.SELECT_BUSINESS_TYPE' | translate }}</option>
+                        <option value="restaurant">{{ 'SETTINGS.BUSINESS_TYPE_RESTAURANT' | translate }}</option>
+                        <option value="bar">{{ 'SETTINGS.BUSINESS_TYPE_BAR' | translate }}</option>
+                        <option value="cafe">{{ 'SETTINGS.BUSINESS_TYPE_CAFE' | translate }}</option>
+                        <option value="retail">{{ 'SETTINGS.BUSINESS_TYPE_RETAIL' | translate }}</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="description">{{ 'SETTINGS.DESCRIPTION' | translate }}</label>
+                    <textarea id="description" [(ngModel)]="formData.description" name="description" rows="3"></textarea>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="public_background_color">{{ 'SETTINGS.PUBLIC_BACKGROUND_COLOR' | translate }}</label>
+                    <div class="background-color-row">
+                      <input
+                        type="color"
+                        id="public_background_color"
+                        [value]="formData.public_background_color || '#f5f5f5'"
+                        (input)="formData.public_background_color = $any($event.target).value"
+                        class="color-input"
+                      />
+                      <input
+                        type="text"
+                        [(ngModel)]="formData.public_background_color"
+                        name="public_background_color_hex"
+                        placeholder="#1E22AA"
+                        class="hex-input"
+                      />
+                      <button type="button" class="btn btn-secondary btn-sm" (click)="formData.public_background_color = '#1E22AA'" title="RAL5002 Azul">
+                        {{ 'SETTINGS.PRESET_RAL5002' | translate }}
+                      </button>
+                    </div>
+                    <small class="field-hint">{{ 'SETTINGS.PUBLIC_BACKGROUND_COLOR_HINT' | translate }}</small>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="timezone">{{ 'SETTINGS.TIMEZONE' | translate }}</label>
+                    <div class="timezone-select-wrapper">
+                      <input
+                        type="text"
+                        id="timezone-search"
+                        [(ngModel)]="timezoneSearch"
+                        name="timezoneSearch"
+                        [placeholder]="'SETTINGS.SEARCH_TIMEZONE' | translate"
+                        (focus)="timezoneDropdownOpen = true"
+                        (blur)="timezoneDropdownOpen = false"
+                        (input)="filterTimezones()"
+                        autocomplete="off"
+                      />
+                      @if (timezoneDropdownOpen && filteredTimezones.length > 0) {
+                        <div class="timezone-dropdown">
+                          @for (tz of filteredTimezones; track tz) {
+                            <div
+                              class="timezone-option"
+                              [class.selected]="formData.timezone === tz"
+                              (mousedown)="selectTimezone(tz)">
+                              {{ tz }}
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+                    @if (formData.timezone) {
+                      <small class="field-hint">{{ formData.timezone }}</small>
+                    } @else {
+                      <small class="field-hint field-warning">{{ 'SETTINGS.TIMEZONE_NOT_SET' | translate }}</small>
+                    }
+                  </div>
+
+                  <div class="form-group">
+                    <label for="country_code">{{ 'SETTINGS.COUNTRY_CODE' | translate }}</label>
+                    <input
+                      type="text"
+                      id="country_code"
+                      name="country_code"
+                      [(ngModel)]="formData.country_code"
+                      maxlength="2"
+                      [placeholder]="'ES'"
+                      class="country-code-input"
+                      autocomplete="off"
+                    />
+                    <small class="field-hint">{{ 'SETTINGS.COUNTRY_CODE_HINT' | translate }}</small>
+                  </div>
+                </div>
+              }
+
+              <!-- Contact Section -->
+              @if (activeSection() === 'contact') {
+                <div class="section">
+                  <div class="section-header">
+                    <h2>{{ 'SETTINGS.CONTACT_INFO' | translate }}</h2>
+                    <p>{{ 'SETTINGS.CONTACT_INFO_SUBTITLE' | translate }}</p>
+                  </div>
+                  
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="phone">{{ 'SETTINGS.PHONE' | translate }}</label>
+                      <input type="tel" id="phone" [(ngModel)]="formData.phone" name="phone" />
+                    </div>
+                    <div class="form-group">
+                      <label for="whatsapp">{{ 'SETTINGS.WHATSAPP' | translate }}</label>
+                      <input type="tel" id="whatsapp" [(ngModel)]="formData.whatsapp" name="whatsapp" />
+                    </div>
+                  </div>
+                  
+                  <div class="form-group">
+                    <label for="email">{{ 'SETTINGS.EMAIL' | translate }}</label>
+                    <input type="email" id="email" [(ngModel)]="formData.email" name="email" />
+                  </div>
+                  
+                  <div class="form-group">
+                    <label for="address">{{ 'SETTINGS.ADDRESS' | translate }}</label>
+                    <input type="text" id="address" [(ngModel)]="formData.address" name="address" />
+                  </div>
+                  
+                  <div class="form-group">
+                    <label for="website">{{ 'SETTINGS.WEBSITE' | translate }}</label>
+                    <input type="url" id="website" [(ngModel)]="formData.website" name="website" />
+                  </div>
+
+                  <div class="form-group">
+                    <label for="public_google_review_url">{{ 'SETTINGS.PUBLIC_GOOGLE_REVIEW_URL' | translate }}</label>
+                    <input
+                      type="url"
+                      id="public_google_review_url"
+                      [(ngModel)]="formData.public_google_review_url"
+                      name="public_google_review_url"
+                      (ngModelChange)="autoGenerateReviewUrlFromPlaceId()"
+                      [placeholder]="'SETTINGS.PUBLIC_GOOGLE_REVIEW_PLACEHOLDER' | translate"
+                    />
+                    @if (publicGoogleReviewUrlEmpty()) {
+                      <div class="form-description">
+                        <p>{{ 'SETTINGS.PUBLIC_GOOGLE_REVIEW_DESCRIPTION' | translate }}</p>
+                        <p>{{ 'SETTINGS.PUBLIC_GOOGLE_REVIEW_INSTRUCTIONS' | translate }}</p>
+                      </div>
+                    }
+                    <small class="field-hint">
+                      @if (publicGoogleReviewAutoHint()) {
+                        {{ 'SETTINGS.PUBLIC_GOOGLE_REVIEW_HINT' | translate }}
+                      }
+                      @if (publicGoogleReviewUrlHint()) {
+                        {{ 'SETTINGS.PUBLIC_GOOGLE_REVIEW_URL_HINT' | translate }}
+                      }
+                    </small>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="public_google_maps_url">{{ 'SETTINGS.PUBLIC_GOOGLE_MAPS_URL' | translate }}</label>
+                    <input
+                      type="url"
+                      id="public_google_maps_url"
+                      [(ngModel)]="formData.public_google_maps_url"
+                      name="public_google_maps_url"
+                      [placeholder]="'SETTINGS.PUBLIC_GOOGLE_MAPS_PLACEHOLDER' | translate"
+                    />
+                    <small class="field-hint">{{ 'SETTINGS.PUBLIC_GOOGLE_MAPS_HINT' | translate }}</small>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="public_openstreetmap_url">{{ 'SETTINGS.PUBLIC_OPENSTREETMAP_URL' | translate }}</label>
+                    <input
+                      type="url"
+                      id="public_openstreetmap_url"
+                      [(ngModel)]="formData.public_openstreetmap_url"
+                      name="public_openstreetmap_url"
+                      [placeholder]="'SETTINGS.PUBLIC_OPENSTREETMAP_PLACEHOLDER' | translate"
+                    />
+                    <small class="field-hint">{{ 'SETTINGS.PUBLIC_OPENSTREETMAP_HINT' | translate }}</small>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="public_terms_of_service_url">{{ 'SETTINGS.PUBLIC_TERMS_OF_SERVICE_URL' | translate }}</label>
+                    <input
+                      type="url"
+                      id="public_terms_of_service_url"
+                      [(ngModel)]="formData.public_terms_of_service_url"
+                      name="public_terms_of_service_url"
+                      [placeholder]="'SETTINGS.PUBLIC_TERMS_OF_SERVICE_PLACEHOLDER' | translate"
+                    />
+                    <small class="field-hint">{{ 'SETTINGS.PUBLIC_TERMS_OF_SERVICE_HINT' | translate }}</small>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="public_privacy_policy_url">{{ 'SETTINGS.PUBLIC_PRIVACY_POLICY_URL' | translate }}</label>
+                    <input
+                      type="url"
+                      id="public_privacy_policy_url"
+                      [(ngModel)]="formData.public_privacy_policy_url"
+                      name="public_privacy_policy_url"
+                      [placeholder]="'SETTINGS.PUBLIC_PRIVACY_POLICY_PLACEHOLDER' | translate"
+                    />
+                    <small class="field-hint">{{ 'SETTINGS.PUBLIC_PRIVACY_POLICY_HINT' | translate }}</small>
+                  </div>
+
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="tax_id">{{ 'SETTINGS.TAX_ID' | translate }}</label>
+                      <input type="text" id="tax_id" [(ngModel)]="formData.tax_id" name="tax_id" [placeholder]="'SETTINGS.TAX_ID_PLACEHOLDER' | translate" />
+                    </div>
+                    <div class="form-group">
+                      <label for="cif">{{ 'SETTINGS.CIF' | translate }}</label>
+                      <input type="text" id="cif" [(ngModel)]="formData.cif" name="cif" [placeholder]="'SETTINGS.CIF_PLACEHOLDER' | translate" />
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label for="ccc">{{ 'SETTINGS.CCC' | translate }}</label>
+                    <input
+                      type="text"
+                      id="ccc"
+                      [(ngModel)]="formData.ccc"
+                      name="ccc"
+                      [placeholder]="'SETTINGS.CCC_PLACEHOLDER' | translate"
+                      autocomplete="off"
+                    />
+                    <small class="field-hint">{{ 'SETTINGS.CCC_HINT' | translate }}</small>
+                  </div>
+                  <div class="form-group">
+                    <label for="default_tax_id">{{ 'SETTINGS.DEFAULT_TAX' | translate }}</label>
+                    <select
+                      id="default_tax_id"
+                      data-testid="settings-default-tax-select"
+                      [(ngModel)]="formData.default_tax_id"
+                      name="default_tax_id"
+                    >
+                      <option [ngValue]="null">{{ 'SETTINGS.NO_DEFAULT_TAX' | translate }}</option>
+                      @for (t of taxes(); track t.id) {
+                        <option [ngValue]="t.id">{{ t.name }} ({{ t.rate_percent }}%)</option>
+                      }
+                    </select>
+                    <small class="field-hint">{{ 'SETTINGS.DEFAULT_TAX_HINT' | translate }}</small>
+                  </div>
+                </div>
+              }
+
+              <!-- Hours Section -->
+              @if (activeSection() === 'hours') {
+                <div class="section">
+                  <div class="section-header">
+                    <h2>{{ 'SETTINGS.OPENING_HOURS' | translate }}</h2>
+                    <p>{{ 'SETTINGS.OPENING_HOURS_SUBTITLE' | translate }}</p>
+                  </div>
+                  @if (getOpeningHoursSummary()) {
+                    <div class="opening-hours-summary">
+                      <span class="summary-label">{{ 'SETTINGS.OPENING_HOURS' | translate }}:</span>
+                      <span class="summary-text">{{ getOpeningHoursSummary() }}</span>
+                    </div>
+                  }
+                  <div class="copy-to-other-days">
+                    <label>{{ 'SETTINGS.COPY_FROM_DAY' | translate }}</label>
+                    <select [(ngModel)]="copyFromDayKey" name="copyFromDay">
+                      @for (day of daysOfWeek; track day.key) {
+                        <option [value]="day.key">{{ day.label | translate }}</option>
+                      }
+                    </select>
+                    <button type="button" class="btn btn-secondary btn-sm" (click)="copyDayToOtherDays(copyFromDayKey)">
+                      {{ 'SETTINGS.COPY_TO_OTHER_DAYS' | translate }}
+                    </button>
+                  </div>
+                  <div class="hours-grid">
+                    @for (day of daysOfWeek; track day.key) {
+                      <div class="day-row" [class.closed]="openingHours[day.key]?.closed">
+                        <div class="day-header">
+                          <label class="switch">
+                            <input
+                              type="checkbox"
+                              [checked]="!openingHours[day.key]?.closed"
+                              (change)="toggleDayClosed(day.key, $event)"
+                            />
+                            <span class="slider round"></span>
+                          </label>
+                          <span class="day-name">{{ day.label | translate }}</span>
+                        </div>
+
+                        @if (!openingHours[day.key]?.closed) {
+                          <div class="hours-inputs">
+                            @if (!openingHours[day.key]?.hasBreak) {
+                              <div class="time-range">
+                                <select [ngModel]="openingHours[day.key]?.open || '09:00'" (ngModelChange)="setOpeningHourValue(day.key, 'open', $event)" [name]="'open-' + day.key">
+                                  @for (t of timeOptions; track t) {
+                                    <option [value]="t">{{ t }}</option>
+                                  }
+                                </select>
+                                <span>–</span>
+                                <select [ngModel]="openingHours[day.key]?.close || '22:00'" (ngModelChange)="setOpeningHourValue(day.key, 'close', $event)" [name]="'close-' + day.key">
+                                  @for (t of timeOptions; track t) {
+                                    <option [value]="t">{{ t }}</option>
+                                  }
+                                </select>
+                              </div>
+                            } @else {
+                              <div class="split-shifts">
+                                <div class="shift">
+                                  <span class="shift-label">{{ 'SETTINGS.MORNING_SHIFT' | translate }}</span>
+                                  <select [ngModel]="openingHours[day.key]?.morningOpen" (ngModelChange)="setOpeningHourValue(day.key, 'morningOpen', $event)" [name]="'mo-' + day.key">
+                                    @for (t of timeOptions; track t) {
+                                      <option [value]="t">{{ t }}</option>
+                                    }
+                                  </select>
+                                  <span>–</span>
+                                  <select [ngModel]="openingHours[day.key]?.morningClose" (ngModelChange)="setOpeningHourValue(day.key, 'morningClose', $event)" [name]="'mc-' + day.key">
+                                    @for (t of timeOptions; track t) {
+                                      <option [value]="t">{{ t }}</option>
+                                    }
+                                  </select>
+                                </div>
+                                <div class="shift">
+                                  <span class="shift-label">{{ 'SETTINGS.EVENING_SHIFT' | translate }}</span>
+                                  <select [ngModel]="openingHours[day.key]?.eveningOpen" (ngModelChange)="setOpeningHourValue(day.key, 'eveningOpen', $event)" [name]="'eo-' + day.key">
+                                    @for (t of timeOptions; track t) {
+                                      <option [value]="t">{{ t }}</option>
+                                    }
+                                  </select>
+                                  <span>–</span>
+                                  <select [ngModel]="openingHours[day.key]?.eveningClose" (ngModelChange)="setOpeningHourValue(day.key, 'eveningClose', $event)" [name]="'ec-' + day.key">
+                                    @for (t of timeOptions; track t) {
+                                      <option [value]="t">{{ t }}</option>
+                                    }
+                                  </select>
+                                </div>
+                              </div>
+                            }
+                            <div class="break-option">
+                              <label class="checkbox-small">
+                                <input type="checkbox" [checked]="openingHours[day.key]?.hasBreak" (change)="toggleBreak(day.key, $event)">
+                                {{ 'SETTINGS.HAS_BREAK' | translate }}
+                              </label>
+                            </div>
+                            <div class="personnel-per-shift">
+                              <span class="personnel-label">{{ 'SETTINGS.PERSONNEL_PER_SHIFT' | translate }}</span>
+                              <div class="personnel-inputs">
+                                @for (role of staffRoleKeys; track role.key) {
+                                  <div class="personnel-field">
+                                    <label [for]="'staff-' + day.key + '-' + role.key">{{ role.labelKey | translate }}</label>
+                                    <input type="number" [id]="'staff-' + day.key + '-' + role.key"
+                                      [value]="getStaffRequired(day.key, role.key)"
+                                      (input)="setStaffRequired(day.key, role.key, $any($event.target).value)"
+                                      min="0" max="99" class="input-number" />
+                                  </div>
+                                }
+                              </div>
+                            </div>
+                          </div>
+                        } @else {
+                          <span class="closed-badge">{{ 'SETTINGS.CLOSED' | translate }}</span>
+                        }
+                      </div>
+                    }
+                  </div>
+
+                  <div class="divider"></div>
+                  <div class="section-header">
+                    <h3>{{ 'SETTINGS.OPENING_HOURS_PLANNED_TITLE' | translate }}</h3>
+                    <p>{{ 'SETTINGS.OPENING_HOURS_PLANNED_HELP' | translate }}</p>
+                  </div>
+
+                  <div class="oh-schedule-card">
+                    <h4>{{ 'SETTINGS.OPENING_HOURS_BASELINE_SECTION' | translate }}</h4>
+                    <p class="hint">{{ 'SETTINGS.OPENING_HOURS_BASELINE_HINT' | translate }}</p>
+                    <div class="form-row oh-schedule-form">
+                      <div class="form-group">
+                        <label for="baseline_eff">{{ 'SETTINGS.OPENING_HOURS_EFFECTIVE_FROM' | translate }}</label>
+                        <input id="baseline_eff" type="date" [(ngModel)]="baselineScheduleEffectiveDate" name="baseline_eff" />
+                      </div>
+                      <div class="form-group flex-grow">
+                        <label for="baseline_note">{{ 'SETTINGS.OPENING_HOURS_BASELINE_NOTE' | translate }}</label>
+                        <input id="baseline_note" type="text" [(ngModel)]="baselineScheduleNote" name="baseline_note" />
+                      </div>
+                      <button type="button" class="btn btn-secondary" (click)="addBaselineSchedule()" [disabled]="saving()">
+                        {{ 'SETTINGS.OPENING_HOURS_ADD_BASELINE' | translate }}
+                      </button>
+                    </div>
+                    <h4>{{ 'SETTINGS.OPENING_HOURS_BASELINES_LIST' | translate }}</h4>
+                    @if (loadingOpeningHoursSchedule()) {
+                      <p>{{ 'COMMON.LOADING' | translate }}</p>
+                    } @else if (openingHoursScheduleBaselines().length === 0) {
+                      <p class="hint">{{ 'SETTINGS.OPENING_HOURS_NO_BASELINES' | translate }}</p>
+                    } @else {
+                      <table class="oh-schedule-table">
+                        <thead>
+                          <tr>
+                            <th>{{ 'SETTINGS.OPENING_HOURS_EFFECTIVE_FROM' | translate }}</th>
+                            <th>{{ 'SETTINGS.OPENING_HOURS_NOTE_SHORT' | translate }}</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (b of openingHoursScheduleBaselines(); track b.id) {
+                            <tr>
+                              <td>{{ b.effective_from }}</td>
+                              <td>{{ b.note || '—' }}</td>
+                              <td>
+                                <button type="button" class="btn btn-link danger" (click)="deleteBaselineSchedule(b.id)">
+                                  {{ 'COMMON.DELETE' | translate }}
+                                </button>
+                              </td>
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    }
+                  </div>
+
+                  <div class="oh-schedule-card">
+                    <h4>{{ 'SETTINGS.OPENING_HOURS_OVERRIDE_SECTION' | translate }}</h4>
+                    <p class="hint">{{ 'SETTINGS.OPENING_HOURS_OVERRIDE_HINT' | translate }}</p>
+                    <div class="form-group checkbox-row">
+                      <label class="switch">
+                        <input type="checkbox" [(ngModel)]="overrideClosedOnly" name="override_closed" />
+                        <span class="slider round"></span>
+                      </label>
+                      <span>{{ 'SETTINGS.OPENING_HOURS_OVERRIDE_CLOSED' | translate }}</span>
+                    </div>
+                    <div class="form-row oh-schedule-form">
+                      <div class="form-group">
+                        <label for="ov_from">{{ 'SETTINGS.OPENING_HOURS_DATE_FROM' | translate }}</label>
+                        <input id="ov_from" type="date" [(ngModel)]="overrideDateFrom" name="ov_from" />
+                      </div>
+                      <div class="form-group">
+                        <label for="ov_to">{{ 'SETTINGS.OPENING_HOURS_DATE_TO' | translate }}</label>
+                        <input id="ov_to" type="date" [(ngModel)]="overrideDateTo" name="ov_to" />
+                      </div>
+                      <div class="form-group flex-grow">
+                        <label for="ov_note">{{ 'SETTINGS.OPENING_HOURS_BASELINE_NOTE' | translate }}</label>
+                        <input id="ov_note" type="text" [(ngModel)]="overrideScheduleNote" name="ov_note" />
+                      </div>
+                      <button type="button" class="btn btn-secondary" (click)="addOverrideSchedule()" [disabled]="saving()">
+                        {{ 'SETTINGS.OPENING_HOURS_ADD_OVERRIDE' | translate }}
+                      </button>
+                    </div>
+                    <h4>{{ 'SETTINGS.OPENING_HOURS_OVERRIDES_LIST' | translate }}</h4>
+                    @if (loadingOpeningHoursSchedule()) {
+                      <p>{{ 'COMMON.LOADING' | translate }}</p>
+                    } @else if (openingHoursScheduleOverrides().length === 0) {
+                      <p class="hint">{{ 'SETTINGS.OPENING_HOURS_NO_OVERRIDES' | translate }}</p>
+                    } @else {
+                      <table class="oh-schedule-table">
+                        <thead>
+                          <tr>
+                            <th>{{ 'SETTINGS.OPENING_HOURS_DATE_FROM' | translate }}</th>
+                            <th>{{ 'SETTINGS.OPENING_HOURS_DATE_TO' | translate }}</th>
+                            <th>{{ 'SETTINGS.OPENING_HOURS_OVERRIDE_TYPE' | translate }}</th>
+                            <th>{{ 'SETTINGS.OPENING_HOURS_NOTE_SHORT' | translate }}</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (o of openingHoursScheduleOverrides(); track o.id) {
+                            <tr>
+                              <td>{{ o.date_from }}</td>
+                              <td>{{ o.date_to }}</td>
+                              <td>{{ o.closed ? ('SETTINGS.OPENING_HOURS_TYPE_CLOSED' | translate) : ('SETTINGS.OPENING_HOURS_TYPE_HOURS' | translate) }}</td>
+                              <td>{{ o.note || '—' }}</td>
+                              <td>
+                                <button type="button" class="btn btn-link danger" (click)="deleteOverrideSchedule(o.id)">
+                                  {{ 'COMMON.DELETE' | translate }}
+                                </button>
+                              </td>
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    }
+                  </div>
+                </div>
+              }
+
+              <!-- Payments Section -->
+              @if (activeSection() === 'payments') {
+                <div class="section">
+                  <div class="section-header">
+                    <h2>{{ 'SETTINGS.PAYMENT_SETTINGS' | translate }}</h2>
+                    <p>{{ 'SETTINGS.PAYMENT_SETTINGS_SUBTITLE' | translate }}</p>
+                  </div>
+                  
+                  <div class="form-group">
+                    <label for="currency_code">{{ 'SETTINGS.SELECT_CURRENCY' | translate }}</label>
+                    <select
+                      id="currency_code"
+                      [(ngModel)]="formData.currency_code"
+                      (ngModelChange)="onTenantCurrencyCodeChange()"
+                      name="currency_code"
+                      class="input-medium">
+                      @for (c of currencySelectOptions(); track c) {
+                        <option [value]="c">{{ c }}</option>
+                      }
+                    </select>
+                    <p class="hint">{{ 'SETTINGS.CURRENCY_HINT' | translate }}</p>
+                  </div>
+                  
+                  <div class="divider"></div>
+                  
+                  <h3>Stripe Integration</h3>
+                  <div class="form-group">
+                    <label>{{ 'SETTINGS.STRIPE_PUBLISHABLE_KEY' | translate }}</label>
+                    <input type="text" [(ngModel)]="formData.stripe_publishable_key" name="stripe_publishable_key" class="code-input" />
+                  </div>
+                  <div class="form-group">
+                    <label>{{ 'SETTINGS.STRIPE_SECRET_KEY' | translate }}</label>
+                    <input type="password" [(ngModel)]="formData.stripe_secret_key" name="stripe_secret_key" placeholder="••••••••••••••••" />
+                  </div>
+
+                  <h3>{{ 'SETTINGS.REVOLUT_INTEGRATION' | translate }}</h3>
+                  <div class="form-group">
+                    <label>{{ 'SETTINGS.REVOLUT_MERCHANT_SECRET' | translate }}</label>
+                    <input type="password" [(ngModel)]="formData.revolut_merchant_secret" name="revolut_merchant_secret" placeholder="••••••••••••••••" />
+                    <p class="hint">{{ 'SETTINGS.REVOLUT_MERCHANT_SECRET_HINT' | translate }}</p>
+                  </div>
+
+                  <div class="divider"></div>
+                  <h3>{{ 'SETTINGS.FISCAL_INVOICING_TITLE' | translate }}</h3>
+                  <p class="hint">{{ 'SETTINGS.FISCAL_INVOICING_DESC' | translate }}</p>
+                  <div class="form-group">
+                    <label for="fiscal_mode">{{ 'SETTINGS.FISCAL_MODE' | translate }}</label>
+                    <select id="fiscal_mode" class="form-select" [(ngModel)]="formData.fiscal_mode" name="fiscal_mode">
+                      <option value="off">{{ 'SETTINGS.FISCAL_MODE_OFF' | translate }}</option>
+                      <option value="test">{{ 'SETTINGS.FISCAL_MODE_TEST' | translate }}</option>
+                      <option value="live">{{ 'SETTINGS.FISCAL_MODE_LIVE' | translate }}</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="fiscal_invoice_series">{{ 'SETTINGS.FISCAL_SERIES' | translate }}</label>
+                    <input
+                      type="text"
+                      id="fiscal_invoice_series"
+                      [(ngModel)]="formData.fiscal_invoice_series"
+                      name="fiscal_invoice_series"
+                      maxlength="32"
+                      class="input-medium"
+                    />
+                    <p class="hint">{{ 'SETTINGS.FISCAL_SERIES_HINT' | translate }}</p>
+                  </div>
+                  <div class="form-group">
+                    <label for="fiscal_aeat_api_secret">{{ 'SETTINGS.FISCAL_AEAT_SECRET' | translate }}</label>
+                    <input
+                      type="password"
+                      id="fiscal_aeat_api_secret"
+                      [(ngModel)]="formData.fiscal_aeat_api_secret"
+                      name="fiscal_aeat_api_secret"
+                      placeholder="••••••••••••••••"
+                      autocomplete="off"
+                    />
+                    <p class="hint">{{ 'SETTINGS.FISCAL_AEAT_SECRET_HINT' | translate }}</p>
+                  </div>
+
+                  <div class="divider"></div>
+                  <h3>{{ 'SETTINGS.TSE_TITLE' | translate }}</h3>
+                  <p class="hint">{{ 'SETTINGS.TSE_DESC' | translate }}</p>
+                  <div class="form-group">
+                    <label for="fiscal_country">{{ 'SETTINGS.FISCAL_COUNTRY' | translate }}</label>
+                    <input
+                      type="text"
+                      id="fiscal_country"
+                      [(ngModel)]="formData.fiscal_country"
+                      name="fiscal_country"
+                      maxlength="2"
+                      class="input-small"
+                      placeholder="DE"
+                    />
+                    <p class="hint">{{ 'SETTINGS.FISCAL_COUNTRY_HINT' | translate }}</p>
+                  </div>
+                  <div class="form-group">
+                    <label for="tse_mode">{{ 'SETTINGS.TSE_MODE' | translate }}</label>
+                    <select id="tse_mode" class="form-select" [(ngModel)]="formData.tse_mode" name="tse_mode">
+                      <option value="off">{{ 'SETTINGS.TSE_MODE_OFF' | translate }}</option>
+                      <option value="test">{{ 'SETTINGS.TSE_MODE_TEST' | translate }}</option>
+                      <option value="live">{{ 'SETTINGS.TSE_MODE_LIVE' | translate }}</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="tse_client_id">{{ 'SETTINGS.TSE_CLIENT_ID' | translate }}</label>
+                    <input
+                      type="text"
+                      id="tse_client_id"
+                      [(ngModel)]="formData.tse_client_id"
+                      name="tse_client_id"
+                      maxlength="128"
+                      class="input-medium"
+                      autocomplete="off"
+                    />
+                    <p class="hint">{{ 'SETTINGS.TSE_CLIENT_ID_HINT' | translate }}</p>
+                  </div>
+                  <div class="form-group">
+                    <label for="tse_api_secret">{{ 'SETTINGS.TSE_API_SECRET' | translate }}</label>
+                    <input
+                      type="password"
+                      id="tse_api_secret"
+                      [(ngModel)]="formData.tse_api_secret"
+                      name="tse_api_secret"
+                      placeholder="••••••••••••••••"
+                      autocomplete="off"
+                    />
+                    <p class="hint">{{ 'SETTINGS.TSE_API_SECRET_HINT' | translate }}</p>
+                  </div>
+                  
+                  <div class="form-group checkbox-row">
+                    <label class="switch">
+                      <input type="checkbox" [(ngModel)]="formData.immediate_payment_required" name="immediate_payment_required">
+                      <span class="slider round"></span>
+                    </label>
+                    <div>
+                      <label class="check-label">{{ 'SETTINGS.IMMEDIATE_PAYMENT' | translate }}</label>
+                      <p class="hint">{{ 'SETTINGS.IMMEDIATE_PAYMENT_HINT' | translate }}</p>
+                    </div>
+                  </div>
+
+                  <div class="divider"></div>
+
+                  <h3>{{ 'SETTINGS.TIP_PRESETS_TITLE' | translate }}</h3>
+                  <p class="hint">{{ 'SETTINGS.TIP_PRESETS_HINT' | translate }}</p>
+                  <div class="form-row" style="display: flex; flex-wrap: wrap; gap: 12px;">
+                    @for (idx of [0, 1, 2, 3]; track idx) {
+                      <div class="form-group" style="min-width: 100px;">
+                        <label [attr.for]="'tip_preset_' + idx">{{ 'SETTINGS.TIP_PRESET_LABEL' | translate: { n: idx + 1 } }}</label>
+                        <input
+                          type="number"
+                          [id]="'tip_preset_' + idx"
+                          min="0"
+                          max="100"
+                          [(ngModel)]="tipPresetEdit[idx]"
+                          [name]="'tip_preset_' + idx"
+                          class="input-small"
+                        />
+                      </div>
+                    }
+                  </div>
+                  <div class="form-group">
+                    <label for="tip_tax_rate_percent">{{ 'SETTINGS.TIP_TAX_RATE' | translate }}</label>
+                    <input
+                      type="number"
+                      id="tip_tax_rate_percent"
+                      min="0"
+                      max="100"
+                      [(ngModel)]="formData.tip_tax_rate_percent"
+                      name="tip_tax_rate_percent"
+                      class="input-small"
+                    />
+                    <p class="hint">{{ 'SETTINGS.TIP_TAX_RATE_HINT' | translate }}</p>
+                  </div>
+                  <div class="form-group">
+                    <label for="tip_entry_mode">{{ 'SETTINGS.TIP_ENTRY_MODE' | translate }}</label>
+                    <select
+                      id="tip_entry_mode"
+                      class="form-select"
+                      [(ngModel)]="formData.tip_entry_mode"
+                      name="tip_entry_mode"
+                    >
+                      <option value="preset">{{ 'SETTINGS.TIP_ENTRY_MODE_PRESET' | translate }}</option>
+                      <option value="overpayment">{{ 'SETTINGS.TIP_ENTRY_MODE_OVERPAYMENT' | translate }}</option>
+                    </select>
+                    <p class="hint">{{ 'SETTINGS.TIP_ENTRY_MODE_HINT' | translate }}</p>
+                  </div>
+
+                  <div class="divider"></div>
+                  
+                  <h3>{{ 'SETTINGS.LOCATION_VERIFICATION' | translate }}</h3>
+                  <p class="section-desc">{{ 'SETTINGS.LOCATION_VERIFICATION_DESC' | translate }}</p>
+                  
+                  <div class="form-group checkbox-row">
+                    <label class="switch">
+                      <input type="checkbox" [(ngModel)]="formData.location_check_enabled" name="location_check_enabled">
+                      <span class="slider round"></span>
+                    </label>
+                    <div>
+                      <label class="check-label">{{ 'SETTINGS.ENABLE_LOCATION_CHECK' | translate }}</label>
+                      <p class="hint">{{ 'SETTINGS.ENABLE_LOCATION_CHECK_HINT' | translate }}</p>
+                    </div>
+                  </div>
+                  
+                  @if (formData.location_check_enabled) {
+                    <div class="location-settings">
+                      <div class="form-row">
+                        <div class="form-group">
+                          <label>{{ 'SETTINGS.LATITUDE' | translate }}</label>
+                          <input type="number" step="0.000001" [(ngModel)]="formData.latitude" name="latitude" placeholder="e.g. 41.385064" />
+                        </div>
+                        <div class="form-group">
+                          <label>{{ 'SETTINGS.LONGITUDE' | translate }}</label>
+                          <input type="number" step="0.000001" [(ngModel)]="formData.longitude" name="longitude" placeholder="e.g. 2.173404" />
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label>{{ 'SETTINGS.LOCATION_RADIUS' | translate }}</label>
+                        <input type="number" [(ngModel)]="formData.location_radius_meters" name="location_radius_meters" placeholder="100" />
+                        <p class="hint">{{ 'SETTINGS.LOCATION_RADIUS_HINT' | translate }}</p>
+                      </div>
+                      <button type="button" class="btn btn-secondary btn-sm" (click)="useCurrentLocation()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <circle cx="12" cy="12" r="10"/>
+                          <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        {{ 'SETTINGS.USE_CURRENT_LOCATION' | translate }}
+                      </button>
+                    </div>
+                  }
+
+                  <div class="divider"></div>
+                  <h3>{{ 'SETTINGS.SATISFECHO_DELIVERY_TITLE' | translate }}</h3>
+                  <p class="section-desc">{{ 'SETTINGS.SATISFECHO_DELIVERY_DESC' | translate }}</p>
+                  <div class="form-group">
+                    <label for="delivery_fee_cents">{{ 'SETTINGS.DELIVERY_FEE_CENTS' | translate }}</label>
+                    <input
+                      type="number"
+                      id="delivery_fee_cents"
+                      min="0"
+                      step="1"
+                      [(ngModel)]="formData.delivery_fee_cents"
+                      name="delivery_fee_cents"
+                      placeholder="0"
+                    />
+                    <p class="hint">{{ 'SETTINGS.DELIVERY_FEE_HINT' | translate }}</p>
+                  </div>
+                  <div class="form-group">
+                    <label for="delivery_radius_meters">{{ 'SETTINGS.DELIVERY_RADIUS' | translate }}</label>
+                    <input
+                      type="number"
+                      id="delivery_radius_meters"
+                      min="0"
+                      step="1"
+                      [(ngModel)]="formData.delivery_radius_meters"
+                      name="delivery_radius_meters"
+                      placeholder="0"
+                    />
+                    <p class="hint">{{ 'SETTINGS.DELIVERY_RADIUS_HINT' | translate }}</p>
+                  </div>
+                  <div class="form-group">
+                    <label for="delivery_postal_codes">{{ 'SETTINGS.DELIVERY_POSTAL_CODES' | translate }}</label>
+                    <textarea
+                      id="delivery_postal_codes"
+                      rows="3"
+                      [(ngModel)]="formData.delivery_postal_codes"
+                      name="delivery_postal_codes"
+                      [placeholder]="'SETTINGS.DELIVERY_POSTAL_CODES_PH' | translate"
+                    ></textarea>
+                    <p class="hint">{{ 'SETTINGS.DELIVERY_POSTAL_CODES_HINT' | translate }}</p>
+                  </div>
+                </div>
+              }
+
+              <!-- Reservations Section -->
+              @if (activeSection() === 'reservations') {
+                <div class="section">
+                  <div class="section-header">
+                    <h2>{{ 'SETTINGS.RESERVATIONS' | translate }}</h2>
+                    <p>{{ 'SETTINGS.RESERVATIONS_SUBTITLE' | translate }}</p>
+                  </div>
+                  <div class="form-group">
+                    <label>{{ 'SETTINGS.RESERVATION_PREPAYMENT' | translate }}</label>
+                    <div class="form-row prepayment-amount-row">
+                      @if (getPrepaymentMinorDigits() === 0) {
+                        <div class="form-group">
+                          <label for="reservation_prepayment_major">{{ 'SETTINGS.PREPAYMENT_WHOLE_AMOUNT_LABEL' | translate }}</label>
+                          <input
+                            type="number"
+                            id="reservation_prepayment_major"
+                            min="0"
+                            step="1"
+                            [(ngModel)]="prepaymentMajorUnits"
+                            name="reservation_prepayment_major"
+                            (ngModelChange)="applyPrepaymentPartsToCents()"
+                          />
+                          <span class="prepayment-currency-hint">{{ getPrepaymentCurrencyLabel() }}</span>
+                        </div>
+                      } @else {
+                        <div class="form-group">
+                          <label for="reservation_prepayment_major">{{ 'SETTINGS.PREPAYMENT_MAJOR_LABEL' | translate }}</label>
+                          <input
+                            type="number"
+                            id="reservation_prepayment_major"
+                            min="0"
+                            step="1"
+                            [(ngModel)]="prepaymentMajorUnits"
+                            name="reservation_prepayment_major"
+                            (ngModelChange)="applyPrepaymentPartsToCents()"
+                          />
+                          <span class="prepayment-currency-hint">{{ getPrepaymentCurrencyLabel() }}</span>
+                        </div>
+                        <div class="form-group">
+                          <label for="reservation_prepayment_minor">{{
+                            'SETTINGS.PREPAYMENT_MINOR_LABEL' | translate: { max: prepaymentMinorMax() }
+                          }}</label>
+                          <input
+                            type="number"
+                            id="reservation_prepayment_minor"
+                            min="0"
+                            [max]="prepaymentMinorMax()"
+                            step="1"
+                            [(ngModel)]="prepaymentMinorUnits"
+                            name="reservation_prepayment_minor"
+                            (ngModelChange)="applyPrepaymentPartsToCents()"
+                          />
+                        </div>
+                      }
+                    </div>
+                    <small class="field-hint">{{ 'SETTINGS.RESERVATION_PREPAYMENT_HINT' | translate }}</small>
+                  </div>
+                  <div class="form-group">
+                    <label for="reservation_prepayment_text">{{ 'SETTINGS.RESERVATION_PREPAYMENT_TEXT' | translate }}</label>
+                    <textarea id="reservation_prepayment_text" [(ngModel)]="formData.reservation_prepayment_text" name="reservation_prepayment_text" rows="3" [placeholder]="'SETTINGS.RESERVATION_PREPAYMENT_TEXT_PLACEHOLDER' | translate"></textarea>
+                    <small class="field-hint">{{ 'SETTINGS.RESERVATION_PREPAYMENT_TEXT_HINT' | translate }}</small>
+                  </div>
+                  <div class="form-group">
+                    <label for="reservation_cancellation_policy">{{ 'SETTINGS.RESERVATION_CANCELLATION_POLICY' | translate }}</label>
+                    <textarea id="reservation_cancellation_policy" [(ngModel)]="formData.reservation_cancellation_policy" name="reservation_cancellation_policy" rows="2" [placeholder]="'SETTINGS.RESERVATION_CANCELLATION_POLICY_PLACEHOLDER' | translate"></textarea>
+                  </div>
+                  <div class="form-group">
+                    <label for="reservation_arrival_tolerance_minutes">{{ 'SETTINGS.RESERVATION_ARRIVAL_TOLERANCE' | translate }}</label>
+                    <input type="number" id="reservation_arrival_tolerance_minutes" min="0" max="120" [(ngModel)]="formData.reservation_arrival_tolerance_minutes" name="reservation_arrival_tolerance_minutes" placeholder="15" />
+                    <small class="field-hint">{{ 'SETTINGS.RESERVATION_ARRIVAL_TOLERANCE_HINT' | translate }}</small>
+                  </div>
+                  <div class="form-group">
+                    <label for="reservation_average_table_turn_minutes">{{ 'SETTINGS.RESERVATION_AVG_TABLE_TURN' | translate }}</label>
+                    <input type="number" id="reservation_average_table_turn_minutes" min="0" max="1440" [(ngModel)]="formData.reservation_average_table_turn_minutes" name="reservation_average_table_turn_minutes" placeholder="60" />
+                    <small class="field-hint">{{ 'SETTINGS.RESERVATION_AVG_TABLE_TURN_HINT' | translate }}</small>
+                  </div>
+                  <div class="form-group">
+                    <label for="reservation_slot_minutes">{{ 'SETTINGS.RESERVATION_SLOT_MINUTES' | translate }}</label>
+                    <input type="number" id="reservation_slot_minutes" min="0" max="120" [(ngModel)]="formData.reservation_slot_minutes" name="reservation_slot_minutes" placeholder="15" />
+                    <small class="field-hint">{{ 'SETTINGS.RESERVATION_SLOT_MINUTES_HINT' | translate }}</small>
+                  </div>
+                  <div class="form-group">
+                    <label for="reservation_max_guests_per_slot">{{ 'SETTINGS.RESERVATION_MAX_GUESTS_PER_SLOT' | translate }}</label>
+                    <input type="number" id="reservation_max_guests_per_slot" min="0" max="500" [(ngModel)]="formData.reservation_max_guests_per_slot" name="reservation_max_guests_per_slot" placeholder="" />
+                    <small class="field-hint">{{ 'SETTINGS.RESERVATION_MAX_GUESTS_PER_SLOT_HINT' | translate }}</small>
+                  </div>
+                  <div class="form-group">
+                    <label for="reservation_walk_in_tables_reserved">{{ 'SETTINGS.RESERVATION_WALK_IN_TABLES' | translate }}</label>
+                    <input type="number" id="reservation_walk_in_tables_reserved" min="0" max="99" [(ngModel)]="formData.reservation_walk_in_tables_reserved" name="reservation_walk_in_tables_reserved" placeholder="0" />
+                    <small class="field-hint">{{ 'SETTINGS.RESERVATION_WALK_IN_TABLES_HINT' | translate }}</small>
+                  </div>
+                  <div class="form-group">
+                    <label for="reservation_dress_code">{{ 'SETTINGS.RESERVATION_DRESS_CODE' | translate }}</label>
+                    <input type="text" id="reservation_dress_code" [(ngModel)]="formData.reservation_dress_code" name="reservation_dress_code" [placeholder]="'SETTINGS.RESERVATION_DRESS_CODE_PLACEHOLDER' | translate" />
+                  </div>
+                  <h3 class="subsection-title">{{ 'SETTINGS.REMINDER_SCHEDULE' | translate }}</h3>
+                  <p class="subsection-desc">{{ 'SETTINGS.REMINDER_SCHEDULE_DESC' | translate }}</p>
+                  <div class="form-group checkbox-row">
+                    <label class="switch">
+                      <input type="checkbox" [(ngModel)]="formData.reservation_reminder_24h_enabled" name="reservation_reminder_24h_enabled">
+                      <span class="slider round"></span>
+                    </label>
+                    <div>
+                      <label class="check-label">{{ 'SETTINGS.RESERVATION_REMINDER_24H' | translate }}</label>
+                      <p class="hint">{{ 'SETTINGS.RESERVATION_REMINDER_24H_HINT' | translate }}</p>
+                    </div>
+                  </div>
+                  <div class="form-group checkbox-row">
+                    <label class="switch">
+                      <input type="checkbox" [(ngModel)]="formData.reservation_reminder_2h_enabled" name="reservation_reminder_2h_enabled">
+                      <span class="slider round"></span>
+                    </label>
+                    <div>
+                      <label class="check-label">{{ 'SETTINGS.RESERVATION_REMINDER_2H' | translate }}</label>
+                      <p class="hint">{{ 'SETTINGS.RESERVATION_REMINDER_2H_HINT' | translate }}</p>
+                    </div>
+                  </div>
+                  <h3 class="subsection-title">{{ 'SETTINGS.GUEST_BIRTHDAY' | translate }}</h3>
+                  <p class="subsection-desc">{{ 'SETTINGS.GUEST_BIRTHDAY_DESC' | translate }}</p>
+                  <div class="form-group checkbox-row">
+                    <label class="switch">
+                      <input type="checkbox" [(ngModel)]="formData.guest_birthday_capture_enabled" name="guest_birthday_capture_enabled">
+                      <span class="slider round"></span>
+                    </label>
+                    <div>
+                      <label class="check-label">{{ 'SETTINGS.GUEST_BIRTHDAY_CAPTURE' | translate }}</label>
+                      <p class="hint">{{ 'SETTINGS.GUEST_BIRTHDAY_CAPTURE_HINT' | translate }}</p>
+                    </div>
+                  </div>
+                  <div class="form-group checkbox-row">
+                    <label class="switch">
+                      <input type="checkbox" [(ngModel)]="formData.guest_birthday_marketing_enabled" name="guest_birthday_marketing_enabled">
+                      <span class="slider round"></span>
+                    </label>
+                    <div>
+                      <label class="check-label">{{ 'SETTINGS.GUEST_BIRTHDAY_MARKETING' | translate }}</label>
+                      <p class="hint">{{ 'SETTINGS.GUEST_BIRTHDAY_MARKETING_HINT' | translate }}</p>
+                    </div>
+                  </div>
+                  @if (formData.guest_birthday_marketing_enabled) {
+                    <div class="form-group">
+                      <label for="guest_birthday_consent_text">{{ 'SETTINGS.GUEST_BIRTHDAY_CONSENT_TEXT' | translate }}</label>
+                      <textarea
+                        id="guest_birthday_consent_text"
+                        [(ngModel)]="formData.guest_birthday_consent_text"
+                        name="guest_birthday_consent_text"
+                        rows="2"
+                        [placeholder]="'SETTINGS.GUEST_BIRTHDAY_CONSENT_PLACEHOLDER' | translate"
+                      ></textarea>
+                      <small class="field-hint">{{ 'SETTINGS.GUEST_BIRTHDAY_CONSENT_HINT' | translate }}</small>
+                    </div>
+                  }
+                </div>
+              }
+
+              <!-- Email (SMTP) Section -->
+              @if (activeSection() === 'email') {
+                <div class="section">
+                  <div class="section-header">
+                    <h2>{{ 'SETTINGS.EMAIL_SETTINGS' | translate }}</h2>
+                    <p>{{ 'SETTINGS.EMAIL_SETTINGS_SUBTITLE' | translate }}</p>
+                  </div>
+                  <div class="form-group">
+                    <label for="smtp_host">{{ 'SETTINGS.SMTP_HOST' | translate }}</label>
+                    <input type="text" id="smtp_host" [(ngModel)]="formData.smtp_host" name="smtp_host" [placeholder]="'SETTINGS.SMTP_HOST_PLACEHOLDER' | translate" />
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="smtp_port">{{ 'SETTINGS.SMTP_PORT' | translate }}</label>
+                      <input type="number" id="smtp_port" [(ngModel)]="formData.smtp_port" name="smtp_port" [placeholder]="'SETTINGS.SMTP_PORT_PLACEHOLDER' | translate" min="1" max="65535" />
+                    </div>
+                    <div class="form-group checkbox-row">
+                      <label class="switch">
+                        <input type="checkbox" [(ngModel)]="formData.smtp_use_tls" name="smtp_use_tls">
+                        <span class="slider round"></span>
+                      </label>
+                      <div>
+                        <label class="check-label">{{ 'SETTINGS.SMTP_USE_TLS' | translate }}</label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label for="smtp_user">{{ 'SETTINGS.SMTP_USER' | translate }}</label>
+                    <input type="text" id="smtp_user" [(ngModel)]="formData.smtp_user" name="smtp_user" [placeholder]="'SETTINGS.SMTP_USER_PLACEHOLDER' | translate" />
+                  </div>
+                  <div class="form-group">
+                    <label for="smtp_password">{{ 'SETTINGS.SMTP_PASSWORD' | translate }}</label>
+                    <input type="password" id="smtp_password" [(ngModel)]="formData.smtp_password" name="smtp_password" [placeholder]="'SETTINGS.SMTP_PASSWORD_PLACEHOLDER' | translate" />
+                  </div>
+                  <div class="form-group">
+                    <label for="email_from">{{ 'SETTINGS.EMAIL_FROM' | translate }}</label>
+                    <input type="email" id="email_from" [(ngModel)]="formData.email_from" name="email_from" [placeholder]="'SETTINGS.EMAIL_PLACEHOLDER' | translate" />
+                  </div>
+                  <div class="form-group">
+                    <label for="email_from_name">{{ 'SETTINGS.EMAIL_FROM_NAME' | translate }}</label>
+                    <input type="text" id="email_from_name" [(ngModel)]="formData.email_from_name" name="email_from_name" [placeholder]="'SETTINGS.EMAIL_FROM_PLACEHOLDER' | translate" />
+                  </div>
+                  <div class="section-header" style="margin-top: 1.5rem;">
+                    <h3>{{ 'SETTINGS.RESERVATION_CONFIRMATION_EMAIL_TITLE' | translate }}</h3>
+                    <p>{{ 'SETTINGS.RESERVATION_CONFIRMATION_EMAIL_DESC' | translate }}</p>
+                  </div>
+                  <div class="form-group">
+                    <label for="reservation_confirmation_email_subject">{{ 'SETTINGS.RESERVATION_CONFIRMATION_SUBJECT' | translate }}</label>
+                    <input type="text" id="reservation_confirmation_email_subject" [(ngModel)]="formData.reservation_confirmation_email_subject" name="reservation_confirmation_email_subject" [placeholder]="'SETTINGS.RESERVATION_CONFIRMATION_SUBJECT_PLACEHOLDER' | translate" />
+                  </div>
+                  <div class="form-group">
+                    <label for="reservation_confirmation_email_body">{{ 'SETTINGS.RESERVATION_CONFIRMATION_BODY' | translate }}</label>
+                    <textarea id="reservation_confirmation_email_body" [(ngModel)]="formData.reservation_confirmation_email_body" name="reservation_confirmation_email_body" rows="14"></textarea>
+                    <p class="hint">{{ 'SETTINGS.RESERVATION_CONFIRMATION_BODY_HINT' | translate }}</p>
+                  </div>
+                </div>
+              }
+
+              <!-- Form Actions -->
+              <div class="form-actions">
+                <button type="button" class="btn btn-secondary" (click)="cancel()">{{ 'SETTINGS.CANCEL' | translate }}</button>
+                <button type="submit" class="btn btn-primary" [disabled]="saving()">
+                  {{ saving() ? ('SETTINGS.SAVING' | translate) : ('SETTINGS.SAVE_CHANGES' | translate) }}
+                </button>
+              </div>
+              
+              @if (error()) {
+                <div class="toast error">
+                  <span>{{ error() }}</span>
+                  <button type="button" class="toast-close" (click)="error.set(null)" aria-label="Dismiss">×</button>
+                </div>
+              }
+              @if (success()) {
+                <div class="toast success">
+                  <span>{{ success() }}</span>
+                  <button type="button" class="toast-close" (click)="dismissSuccessToast()" aria-label="Dismiss">×</button>
+                </div>
+              }
+              
+            </form>
+          }
+      </div>
+    </app-sidebar>
+  `,
+  styles: [`
+    /* ==========================================
+       MOBILE-FIRST RESPONSIVE SETTINGS STYLES
+       ========================================== */
+    
+    /* Page Header */
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--space-4);
+
+      h1 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--color-text);
+        margin: 0;
+      }
+    }
+    
+    @media (min-width: 640px) {
+      .page-header h1 {
+        font-size: 1.5rem;
+      }
+    }
+
+    /* ==========================================
+       TABS - Mobile First (Horizontal Scroll)
+       ========================================== */
+    .tabs-container {
+      margin-bottom: var(--space-4);
+      margin-left: calc(-1 * var(--space-4));
+      margin-right: calc(-1 * var(--space-4));
+      padding: 0 var(--space-4);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      display: block;
+      max-width: calc(100% + (2 * var(--space-4)));
+    }
+
+    .tabs {
+      display: flex;
+      gap: var(--space-2);
+      padding-bottom: var(--space-3);
+      width: max-content;
+      min-width: 100%;
+    }
+
+    /* Mobile: Icon-only tabs with smaller padding */
+    .tab {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-2);
+      padding: var(--space-3);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      color: var(--color-text-muted);
+      font-size: 0.875rem;
+      font-weight: 500;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      min-height: 44px; /* Touch-friendly minimum */
+      min-width: 44px;
+      flex-shrink: 0;
+    }
+
+    /* Hide text on small screens */
+    .tab span {
+      display: none;
+    }
+
+    .tab:hover {
+      color: var(--color-text);
+      border-color: var(--color-primary);
+    }
+
+    .tab.active {
+      background: var(--color-primary);
+      border-color: var(--color-primary);
+      color: white;
+    }
+
+    .tab-icon {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+
+    /* Tablet+: Show text labels */
+    @media (min-width: 480px) {
+      .tab {
+        padding: var(--space-3) var(--space-4);
+      }
+      
+      .tab span {
+        display: inline;
+      }
+      
+      .tab-icon {
+        width: 18px;
+        height: 18px;
+      }
+    }
+
+    /* ==========================================
+       SECTION STYLING
+       ========================================== */
+    .content {
+      /* Full width container */
+    }
+
+    .section {
+      margin-bottom: var(--space-5);
+    }
+    
+    @media (min-width: 640px) {
+      .section {
+        margin-bottom: var(--space-6);
+      }
+    }
+
+    .section-header {
+      margin-bottom: var(--space-4);
+      padding-bottom: var(--space-3);
+      border-bottom: 1px solid var(--color-border);
+
+      h2 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin: 0 0 var(--space-1) 0;
+        color: var(--color-text);
+      }
+
+      p {
+        color: var(--color-text-muted);
+        font-size: 0.8125rem;
+        margin: 0;
+      }
+    }
+    
+    @media (min-width: 640px) {
+      .section-header {
+        margin-bottom: var(--space-5);
+        padding-bottom: var(--space-4);
+      }
+      
+      .section-header h2 {
+        font-size: 1.25rem;
+      }
+      
+      .section-header p {
+        font-size: 0.875rem;
+      }
+    }
+
+    /* ==========================================
+       FORM ELEMENTS - Mobile First
+       ========================================== */
+    .form-row {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+    }
+
+    @media (min-width: 640px) {
+      .form-row {
+        flex-direction: row;
+        gap: var(--space-4);
+      }
+      
+      .form-row .form-group {
+        flex: 1;
+      }
+    }
+
+    .prepayment-amount-row .form-group {
+      margin-bottom: 0;
+    }
+
+    .prepayment-currency-hint {
+      font-size: 0.8125rem;
+      color: var(--color-text-muted);
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      margin-bottom: var(--space-3);
+
+      label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--color-text);
+      }
+
+      input, select, textarea {
+        width: 100%;
+        padding: var(--space-3);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        font-size: 1rem; /* 16px prevents zoom on iOS */
+        background: var(--color-surface);
+        color: var(--color-text);
+        min-height: 44px; /* Touch-friendly */
+
+        &:focus {
+          outline: none;
+          border-color: var(--color-primary);
+          box-shadow: 0 0 0 3px var(--color-primary-light);
+        }
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 100px;
+      }
+
+      .input-short {
+        max-width: 100%;
+      }
+
+      .code-input {
+        font-family: monospace;
+        font-size: 0.875rem;
+      }
+    }
+
+    .background-color-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-2);
+    }
+    .background-color-row .color-input {
+      width: 44px;
+      height: 44px;
+      padding: 2px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+    }
+    .background-color-row .hex-input {
+      flex: 1;
+      min-width: 100px;
+      font-family: monospace;
+    }
+
+    .header-bg-preview {
+      max-width: 320px;
+    }
+    .header-bg-preview img {
+      width: 100%;
+      height: auto;
+      max-height: 120px;
+      object-fit: cover;
+    }
+
+    @media (min-width: 640px) {
+      .form-group {
+        margin-bottom: var(--space-4);
+      }
+      
+      .form-group input,
+      .form-group select,
+      .form-group textarea {
+        font-size: 0.9375rem;
+      }
+      
+      .form-group .input-short {
+        max-width: 120px;
+      }
+    }
+
+    .hint {
+      font-size: 0.75rem;
+      color: var(--color-text-muted);
+      line-height: 1.4;
+    }
+    
+    @media (min-width: 640px) {
+      .hint {
+        font-size: 0.8125rem;
+      }
+    }
+
+    /* ==========================================
+       LOGO UPLOAD - Mobile First
+       ========================================== */
+    .logo-upload-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+      align-items: center;
+    }
+    
+    @media (min-width: 480px) {
+      .logo-upload-wrapper {
+        flex-direction: row;
+        align-items: flex-start;
+      }
+    }
+
+    .current-logo {
+      position: relative;
+      width: 120px;
+      height: 120px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: var(--space-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--color-surface);
+      flex-shrink: 0;
+
+      img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+      }
+
+      .btn-icon-danger {
+        position: absolute;
+        top: -10px;
+        right: -10px;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: var(--color-error);
+        color: white;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        touch-action: manipulation;
+      }
+    }
+    
+    @media (min-width: 640px) {
+      .current-logo {
+        width: 100px;
+        height: 100px;
+      }
+      
+      .current-logo .btn-icon-danger {
+        width: 24px;
+        height: 24px;
+        top: -8px;
+        right: -8px;
+        font-size: 12px;
+      }
+    }
+
+    .upload-controls {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      align-items: center;
+      text-align: center;
+    }
+    
+    @media (min-width: 480px) {
+      .upload-controls {
+        align-items: flex-start;
+        text-align: left;
+      }
+    }
+
+    /* ==========================================
+       OPENING HOURS - Mobile First
+       ========================================== */
+    .opening-hours-summary {
+      background: var(--color-bg);
+      border-radius: var(--radius-md);
+      padding: var(--space-3) var(--space-4);
+      margin-bottom: var(--space-4);
+      border: 1px solid var(--color-border);
+      .summary-label { font-weight: 600; color: var(--color-text-muted); font-size: 0.875rem; margin-right: var(--space-2); }
+      .summary-text { font-size: 0.9375rem; color: var(--color-text); }
+    }
+    .copy-to-other-days {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-2);
+      margin-bottom: var(--space-4);
+      label { font-weight: 500; font-size: 0.875rem; }
+      select { padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--color-border); min-width: 120px; }
+      .btn-sm { padding: var(--space-2) var(--space-3); font-size: 0.875rem; }
+    }
+    .hours-grid {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+    }
+
+    .day-row {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: var(--space-3);
+
+      &.closed {
+        opacity: 0.7;
+      }
+    }
+    
+    @media (min-width: 640px) {
+      .day-row {
+        padding: var(--space-4);
+      }
+    }
+
+    .day-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      margin-bottom: var(--space-2);
+    }
+
+    .day-name {
+      font-weight: 500;
+      font-size: 0.9375rem;
+    }
+
+    /* Mobile: Stack hours below header */
+    .hours-inputs {
+      padding-left: 0;
+      margin-top: var(--space-3);
+    }
+    
+    @media (min-width: 480px) {
+      .hours-inputs {
+        padding-left: 52px; /* Switch width + gap */
+        margin-top: 0;
+      }
+    }
+
+    /* Mobile: Full-width time inputs / selects (0, 15, 30, 45 min options) */
+    .time-range {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      flex-wrap: wrap;
+
+      input, select {
+        flex: 1;
+        min-width: 90px;
+        max-width: 120px;
+        padding: var(--space-2) var(--space-3);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm);
+        font-size: 1rem;
+        min-height: 40px;
+        text-align: center;
+        background: var(--color-bg);
+        color: var(--color-text);
+      }
+      
+      span {
+        color: var(--color-text-muted);
+        font-weight: 500;
+      }
+    }
+    
+    @media (min-width: 480px) {
+      .time-range input, .time-range select {
+        flex: 0 0 auto;
+        width: 110px;
+        min-width: unset;
+      }
+    }
+
+    /* Split Shifts - Mobile First (Stacked) */
+    .split-shifts {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+
+      .shift {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        padding: var(--space-3);
+        background: var(--color-bg);
+        border-radius: var(--radius-sm);
+
+        .shift-label {
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: var(--color-text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        
+        .shift-times {
+          display: flex;
+          align-items: center;
+          gap: var(--space-2);
+          flex-wrap: wrap;
+        }
+
+        input, select {
+          flex: 1;
+          min-width: 80px;
+          max-width: 110px;
+          padding: var(--space-2) var(--space-3);
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius-sm);
+          font-size: 1rem;
+          min-height: 40px;
+          text-align: center;
+          background: var(--color-bg);
+          color: var(--color-text);
+        }
+      }
+    }
+    
+    @media (min-width: 480px) {
+      .split-shifts .shift {
+        flex-direction: row;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-2);
+        background: transparent;
+        
+        .shift-label {
+          width: 60px;
+          text-transform: none;
+          font-weight: 500;
+        }
+        
+        .shift-times {
+          flex-wrap: nowrap;
+        }
+        
+        input {
+          flex: 0 0 auto;
+          width: 100px;
+          min-width: unset;
+        }
+      }
+    }
+
+    .break-option {
+      margin-top: var(--space-3);
+      padding-top: var(--space-3);
+      border-top: 1px dashed var(--color-border);
+    }
+    
+    .checkbox-small {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: 0.875rem;
+      cursor: pointer;
+      min-height: 44px; /* Touch target */
+      
+      input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+      }
+    }
+
+    .personnel-per-shift {
+      margin-top: var(--space-3);
+      padding-top: var(--space-3);
+      border-top: 1px dashed var(--color-border);
+    }
+    .personnel-label {
+      display: block;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--color-text-muted);
+      margin-bottom: var(--space-2);
+    }
+    .personnel-inputs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-4);
+    }
+    .personnel-field {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      label { font-size: 0.8125rem; color: var(--color-text-muted); white-space: nowrap; }
+    }
+    .personnel-field .input-number {
+      width: 3rem;
+      padding: var(--space-1) var(--space-2);
+      font-size: 0.875rem;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      text-align: center;
+    }
+
+    .closed-badge {
+      display: inline-block;
+      padding: var(--space-2) var(--space-3);
+      background: var(--color-bg);
+      border-radius: var(--radius-sm);
+      font-size: 0.8125rem;
+      color: var(--color-text-muted);
+      margin-left: auto;
+    }
+
+    /* ==========================================
+       SWITCHES - Touch-Friendly
+       ========================================== */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 48px;
+      height: 28px;
+      flex-shrink: 0;
+      touch-action: manipulation;
+
+      input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #cbd5e1;
+        transition: .3s;
+
+        &:before {
+          position: absolute;
+          content: "";
+          height: 22px;
+          width: 22px;
+          left: 3px;
+          bottom: 3px;
+          background-color: white;
+          transition: .3s;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+      }
+
+      input:checked + .slider {
+        background-color: var(--color-primary);
+      }
+
+      input:checked + .slider:before {
+        transform: translateX(20px);
+      }
+
+      .slider.round {
+        border-radius: 34px;
+      }
+
+      .slider.round:before {
+        border-radius: 50%;
+      }
+    }
+    
+    @media (min-width: 640px) {
+      .switch {
+        width: 40px;
+        height: 24px;
+      }
+      
+      .switch .slider:before {
+        height: 18px;
+        width: 18px;
+      }
+      
+      .switch input:checked + .slider:before {
+        transform: translateX(16px);
+      }
+    }
+
+    .checkbox-row {
+      flex-direction: column;
+      gap: var(--space-3);
+    }
+    
+    @media (min-width: 480px) {
+      .checkbox-row {
+        flex-direction: row;
+        align-items: flex-start;
+      }
+    }
+
+    .check-label {
+      font-weight: 500;
+    }
+
+    /* ==========================================
+       DIVIDERS & HEADINGS
+       ========================================== */
+    .divider {
+      height: 1px;
+      background: var(--color-border);
+      margin: var(--space-4) 0;
+    }
+    
+    @media (min-width: 640px) {
+      .divider {
+        margin: var(--space-5) 0;
+      }
+    }
+    
+    .section-desc {
+      color: var(--color-text-muted);
+      font-size: 0.875rem;
+      margin-bottom: var(--space-4);
+    }
+    
+    .location-settings {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+      padding: var(--space-4);
+      background: var(--color-bg);
+      border-radius: var(--radius-md);
+      margin-top: var(--space-3);
+    }
+
+    h3 {
+      font-size: 0.9375rem;
+      font-weight: 600;
+      margin: 0 0 var(--space-3) 0;
+    }
+    .subsection-title {
+      margin-top: var(--space-4);
+      padding-top: var(--space-4);
+      border-top: 1px solid var(--color-border);
+    }
+    .subsection-desc {
+      color: var(--color-text-muted);
+      font-size: 0.8125rem;
+      margin: 0 0 var(--space-3) 0;
+    }
+    @media (min-width: 640px) {
+      h3 {
+        font-size: 1rem;
+        margin: 0 0 var(--space-4) 0;
+      }
+    }
+
+    /* ==========================================
+       BUTTONS - Touch-Friendly
+       ========================================== */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-2);
+      padding: var(--space-3) var(--space-5);
+      border: none;
+      border-radius: var(--radius-md);
+      font-size: 0.9375rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      min-height: 48px; /* Touch-friendly */
+      touch-action: manipulation;
+      width: 100%;
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+    }
+    
+    @media (min-width: 640px) {
+      .btn {
+        min-height: 44px;
+        padding: var(--space-3) var(--space-4);
+        font-size: 0.875rem;
+        width: auto;
+      }
+    }
+
+    .btn-primary {
+      background: var(--color-primary);
+      color: white;
+
+      &:hover:not(:disabled) {
+        background: var(--color-primary-hover);
+      }
+      
+      &:active:not(:disabled) {
+        transform: scale(0.98);
+      }
+    }
+
+    .btn-secondary {
+      background: var(--color-surface);
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
+
+      &:hover:not(:disabled) {
+        background: var(--color-bg);
+      }
+      
+      &:active:not(:disabled) {
+        transform: scale(0.98);
+      }
+    }
+
+    .data-export-card {
+      margin-bottom: var(--space-8);
+    }
+
+    .danger-zone {
+      margin-top: var(--space-8);
+      padding: var(--space-5);
+      border: 2px solid #dc2626;
+      border-radius: var(--radius-md);
+      background: #fef2f2;
+    }
+
+    .danger-zone h2 {
+      color: #991b1b;
+      font-size: 1.125rem;
+      margin: 0 0 var(--space-2);
+    }
+
+    .danger-lede {
+      color: #7f1d1d;
+      margin: 0 0 var(--space-4);
+      line-height: 1.5;
+    }
+
+    .btn-danger-outline {
+      margin-top: var(--space-3);
+      background: #dc2626;
+      color: #fff;
+      border: 1px solid #b91c1c;
+
+      &:hover:not(:disabled) {
+        background: #b91c1c;
+      }
+    }
+
+    /* ==========================================
+       FORM ACTIONS - Mobile First
+       ========================================== */
+    .form-actions {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+      padding-top: var(--space-4);
+      border-top: 1px solid var(--color-border);
+      margin-top: var(--space-4);
+    }
+
+    @media (min-width: 640px) {
+      .form-actions {
+        flex-direction: row;
+        justify-content: flex-end;
+        padding-top: var(--space-5);
+        margin-top: var(--space-5);
+      }
+    }
+
+    /* ==========================================
+       LOADING STATE
+       ========================================== */
+    .loading-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-6);
+      color: var(--color-text-muted);
+    }
+    
+    @media (min-width: 640px) {
+      .loading-state {
+        padding: var(--space-8);
+      }
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--color-border);
+      border-top-color: var(--color-primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: var(--space-4);
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ==========================================
+       TOASTS - Mobile First
+       ========================================== */
+    .toast {
+      position: fixed;
+      top: calc(env(safe-area-inset-top, 0px) + var(--space-4));
+      left: 50%;
+      right: auto;
+      bottom: auto;
+      width: min(400px, calc(100% - 2 * var(--space-4)));
+      max-width: 400px;
+      padding: var(--space-4);
+      border-radius: var(--radius-md);
+      color: white;
+      font-weight: 500;
+      transform: translateX(-50%);
+      animation: settingsToastEnter 0.3s ease;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-3);
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+
+      &.success {
+        background: var(--color-success);
+      }
+
+      &.error {
+        background: var(--color-error);
+      }
+    }
+
+    .toast-close {
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.9);
+      cursor: pointer;
+      padding: var(--space-1);
+      font-size: 1.25rem;
+      line-height: 1;
+    }
+
+    .toast-close:hover {
+      color: white;
+    }
+
+    .timezone-select-wrapper {
+      position: relative;
+    }
+
+    .timezone-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      max-height: 200px;
+      overflow-y: auto;
+      background: var(--color-bg, #fff);
+      border: 1px solid var(--color-border, #ddd);
+      border-radius: 0 0 8px 8px;
+      z-index: 10;
+    }
+
+    .timezone-option {
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    .timezone-option:hover,
+    .timezone-option.selected {
+      background: var(--color-primary-light, #f0e6e0);
+    }
+
+    .field-hint {
+      display: block;
+      margin-top: 4px;
+      font-size: 0.8rem;
+      color: var(--color-text-secondary, #666);
+    }
+
+    .field-warning {
+      color: var(--color-warning, #e67e22);
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: var(--color-surface, #fff);
+      border-radius: var(--radius-lg, 12px);
+      max-width: 420px;
+      width: 90%;
+      max-height: 90vh;
+      overflow: auto;
+      box-shadow: var(--shadow-xl, 0 20px 25px -5px rgba(0,0,0,0.1));
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: var(--space-4);
+      border-bottom: 1px solid var(--color-border);
+    }
+    .modal-header h3 { margin: 0; font-size: 1.125rem; }
+    .modal-body { padding: var(--space-4); }
+    .modal-actions {
+      display: flex;
+      gap: var(--space-3);
+      justify-content: flex-end;
+      padding: var(--space-4);
+      border-top: 1px solid var(--color-border);
+    }
+    .btn-icon {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--color-text-muted);
+      padding: 0 var(--space-2);
+      line-height: 1;
+    }
+    .provider-products-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .provider-products-list li {
+      padding: var(--space-1) 0;
+      font-size: 0.875rem;
+    }
+
+    .otp-secret-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      flex-wrap: wrap;
+    }
+    .otp-secret {
+      font-family: monospace;
+      font-size: 0.875rem;
+      padding: var(--space-2) var(--space-3);
+      background: var(--color-bg);
+      border-radius: var(--radius-sm);
+      word-break: break-all;
+    }
+    .otp-enabled-msg {
+      margin-bottom: var(--space-4);
+      color: var(--color-text);
+    }
+
+    /* Security / OTP: separate explanatory copy from actions (GitHub #83) */
+    [data-testid='settings-security-section'] .form-card > p.hint {
+      margin-bottom: var(--space-4);
+    }
+
+    .oh-schedule-card {
+      margin-top: var(--space-4);
+      padding: var(--space-4);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+    }
+    .oh-schedule-card h4 {
+      margin-top: var(--space-3);
+      margin-bottom: var(--space-2);
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    .oh-schedule-form {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: var(--space-3);
+      margin-bottom: var(--space-4);
+    }
+    .flex-grow {
+      flex: 1;
+      min-width: 140px;
+    }
+    .oh-schedule-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+    .oh-schedule-table th,
+    .oh-schedule-table td {
+      text-align: left;
+      padding: var(--space-2) var(--space-3);
+      border-bottom: 1px solid var(--color-border);
+    }
+    .btn-link.danger {
+      color: var(--color-danger, #c62828);
+      padding: 0;
+      font-size: 0.875rem;
+    }
+
+    @keyframes settingsToastEnter {
+      from {
+        transform: translate(-50%, calc(-100% - 12px));
+        opacity: 0;
+      }
+      to {
+        transform: translate(-50%, 0);
+        opacity: 1;
+      }
+    }
+  `]
+})
+export class SettingsComponent implements OnInit, OnDestroy {
+  private api = inject(ApiService);
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private translate = inject(TranslateService);
+  private sanitizer = inject(DomSanitizer);
+  private permissions = inject(PermissionService);
+
+  /** ISO 4217 codes for per-tenant prices (GitHub #41). */
+  readonly tenantCurrencyCodes: string[] = [
+    'EUR',
+    'USD',
+    'GBP',
+    'JPY',
+    'MXN',
+    'CHF',
+    'CAD',
+    'AUD',
+    'NZD',
+    'CNY',
+    'INR',
+    'BRL',
+    'PLN',
+    'SEK',
+    'NOK',
+    'DKK',
+    'KRW',
+    'TWD',
+  ];
+
+  /** Includes current tenant code if it is not in the standard list (e.g. after API changes). */
+  currencySelectOptions(): string[] {
+    const code = this.settings()?.currency_code;
+    const base = [...this.tenantCurrencyCodes];
+    if (code && !base.includes(code)) {
+      return [code, ...base];
+    }
+    return base;
+  }
+
+  /** Split UI for `reservation_prepayment_cents` (major + minor units per ISO 4217 / Intl). */
+  prepaymentMajorUnits = 0;
+  prepaymentMinorUnits = 0;
+
+  getPrepaymentMinorDigits(): number {
+    const raw = (this.formData.currency_code || 'EUR').trim().toUpperCase();
+    if (!raw || raw.length !== 3) {
+      return 2;
+    }
+    try {
+      const opts = new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: raw,
+      }).resolvedOptions();
+      const n = opts.maximumFractionDigits ?? 2;
+      return Math.min(6, Math.max(0, n));
+    } catch {
+      return 2;
+    }
+  }
+
+  prepaymentMinorMax(): number {
+    const d = this.getPrepaymentMinorDigits();
+    if (d <= 0) {
+      return 0;
+    }
+    return 10 ** d - 1;
+  }
+
+  getPrepaymentCurrencySymbol(): string {
+    const raw = (this.formData.currency_code || 'EUR').trim().toUpperCase();
+    const code = raw.length === 3 ? raw : 'EUR';
+    try {
+      const parts = new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: code,
+      }).formatToParts(0);
+      return parts.find((p) => p.type === 'currency')?.value || code;
+    } catch {
+      return code;
+    }
+  }
+
+  getPrepaymentCurrencyLabel(): string {
+    const raw = (this.formData.currency_code || 'EUR').trim().toUpperCase();
+    const code = raw.length === 3 ? raw : 'EUR';
+    const sym = this.getPrepaymentCurrencySymbol();
+    return sym && sym !== code ? `${code} (${sym})` : code;
+  }
+
+  onTenantCurrencyCodeChange(): void {
+    this.syncPrepaymentFieldsFromCents();
+  }
+
+  syncPrepaymentFieldsFromCents(): void {
+    const rawTotal = this.formData.reservation_prepayment_cents;
+    const total =
+      rawTotal == null || rawTotal === 0 || Number.isNaN(Number(rawTotal))
+        ? 0
+        : Math.max(0, Math.floor(Number(rawTotal)));
+    const d = this.getPrepaymentMinorDigits();
+    const mod = 10 ** d;
+    this.prepaymentMajorUnits = Math.floor(total / mod);
+    this.prepaymentMinorUnits = d > 0 ? total % mod : 0;
+  }
+
+  applyPrepaymentPartsToCents(): void {
+    const d = this.getPrepaymentMinorDigits();
+    const mod = 10 ** d;
+    let maj = Math.max(0, Math.floor(Number(this.prepaymentMajorUnits) || 0));
+    let min = d === 0 ? 0 : Math.max(0, Math.floor(Number(this.prepaymentMinorUnits) || 0));
+    if (d > 0 && min >= mod) {
+      maj += Math.floor(min / mod);
+      min = min % mod;
+    }
+    this.prepaymentMajorUnits = maj;
+    this.prepaymentMinorUnits = min;
+    this.formData.reservation_prepayment_cents = maj * mod + min;
+  }
+
+  settings = signal<TenantSettings | null>(null);
+  taxes = signal<Tax[]>([]);
+  taxError = signal('');
+  newTaxName = '';
+  newTaxRate = 10;
+  newTaxValidFrom = new Date().toISOString().slice(0, 10);
+  newTaxValidTo = '';
+  activeSection = signal<
+    | 'general'
+    | 'navigation'
+    | 'contact'
+    | 'hours'
+    | 'payments'
+    | 'email'
+    | 'reservations'
+    | 'taxes'
+    | 'kitchen-stations'
+    | 'loyalty'
+    | 'printing'
+    | 'promos'
+    | 'restaurant-group'
+    | 'delivery-integrations'
+    | 'social-posts'
+    | 'contract-templates'
+    | 'providers'
+    | 'translations'
+    | 'security'
+    | 'data-privacy'
+  >('general');
+
+  readonly uiModuleRows: { key: TenantUiModuleKey; labelKey: string; descKey: string }[] = [
+    { key: 'tables', labelKey: 'SETTINGS.UI_MODULE_TABLES', descKey: 'SETTINGS.UI_MODULE_TABLES_DESC' },
+    {
+      key: 'working_plan',
+      labelKey: 'SETTINGS.UI_MODULE_WORKING_PLAN',
+      descKey: 'SETTINGS.UI_MODULE_WORKING_PLAN_DESC',
+    },
+    { key: 'providers', labelKey: 'SETTINGS.UI_MODULE_PROVIDERS', descKey: 'SETTINGS.UI_MODULE_PROVIDERS_DESC' },
+    {
+      key: 'reservations',
+      labelKey: 'SETTINGS.UI_MODULE_RESERVATIONS',
+      descKey: 'SETTINGS.UI_MODULE_RESERVATIONS_DESC',
+    },
+    {
+      key: 'kitchen_bar',
+      labelKey: 'SETTINGS.UI_MODULE_KITCHEN_BAR',
+      descKey: 'SETTINGS.UI_MODULE_KITCHEN_BAR_DESC',
+    },
+    { key: 'inventory', labelKey: 'SETTINGS.UI_MODULE_INVENTORY', descKey: 'SETTINGS.UI_MODULE_INVENTORY_DESC' },
+    {
+      key: 'contracts',
+      labelKey: 'SETTINGS.UI_MODULE_CONTRACTS',
+      descKey: 'SETTINGS.UI_MODULE_CONTRACTS_DESC',
+    },
+    { key: 'users', labelKey: 'SETTINGS.UI_MODULE_USERS', descKey: 'SETTINGS.UI_MODULE_USERS_DESC' },
+  ];
+  loading = signal<boolean>(false);
+  saving = signal<boolean>(false);
+  error = signal<string | null>(null);
+  success = signal<string | null>(null);
+  /** Auto-hide save success toast (GitHub #80); manual dismiss still works. */
+  private static readonly SETTINGS_SUCCESS_TOAST_MS = 60_000;
+  private successDismissTimer?: ReturnType<typeof setTimeout>;
+  logoPreview = signal<string | null>(null);
+  logoFile: File | null = null;
+  headerBackgroundPreview = signal<string | null>(null);
+  headerBackgroundFile: File | null = null;
+
+  /** Google Review auto-hint signals (GitHub #176) */
+  publicGoogleReviewAutoHint = signal(false);
+  publicGoogleReviewHint = signal<string>('');
+  publicGoogleReviewUrlHint = signal<string>('');
+  publicGoogleReviewUrlEmpty = signal(true);
+
+  providers = signal<Provider[]>([]);
+  providersLoading = signal(false);
+  providersError = signal('');
+  providerProductsMap = signal<Record<number, ProviderProduct[]>>({});
+  providerProductsExpanded = signal<Set<number>>(new Set());
+  showAddProviderModal = signal(false);
+  showEditProviderModal = signal(false);
+  editingProvider = signal<Provider | null>(null);
+  editProviderName = '';
+  editProviderUrl = '';
+  editProviderPhone = '';
+  editProviderEmail = '';
+  editProviderActive = true;
+  editProviderError = signal('');
+  showAddProductModal = signal(false);
+  selectedProviderForProduct = signal<Provider | null>(null);
+  newProviderName = '';
+  newProviderPhone = '';
+  newProviderEmail = '';
+  providerError = signal('');
+  newProductName = '';
+  newProductPrice: number | null = null;
+  newProductCategory = '';
+  newProductOnSale = true;
+  providerProductError = signal('');
+
+  otpStatus = signal<{ otp_enabled: boolean } | null>(null);
+  otpStatusLoading = signal(false);
+  otpSetupResult = signal<{ secret: string; provisioning_uri: string } | null>(null);
+  otpConfirmCode = '';
+  otpError = signal<string | null>(null);
+  otpConfirming = signal(false);
+  otpDisableCode = '';
+  otpDisabling = signal(false);
+  otpSettingUp = signal(false);
+
+  clockQrBusy = signal(false);
+  clockQrDownloadBusy = signal(false);
+  clockQrTokenLoading = signal(false);
+  /** Plain token: from regenerate response or loaded via GET /tenant/settings/clock-qr/token when encrypted backup exists. */
+  clockQrLastToken = signal<string | null>(null);
+
+  purgeConfirmTenantName = '';
+  dataExporting = signal(false);
+  purging = signal(false);
+  purgeError = signal<string | null>(null);
+
+  openingHoursScheduleBaselines = signal<OpeningHoursBaselineRow[]>([]);
+  openingHoursScheduleOverrides = signal<OpeningHoursOverrideRow[]>([]);
+  loadingOpeningHoursSchedule = signal(false);
+
+  baselineScheduleEffectiveDate = '';
+  baselineScheduleNote = '';
+
+  overrideDateFrom = '';
+  overrideDateTo = '';
+  overrideClosedOnly = false;
+  overrideScheduleNote = '';
+
+  daysOfWeek = [
+    { key: 'monday', label: 'SETTINGS.DAY_MONDAY' },
+    { key: 'tuesday', label: 'SETTINGS.DAY_TUESDAY' },
+    { key: 'wednesday', label: 'SETTINGS.DAY_WEDNESDAY' },
+    { key: 'thursday', label: 'SETTINGS.DAY_THURSDAY' },
+    { key: 'friday', label: 'SETTINGS.DAY_FRIDAY' },
+    { key: 'saturday', label: 'SETTINGS.DAY_SATURDAY' },
+    { key: 'sunday', label: 'SETTINGS.DAY_SUNDAY' }
+  ];
+
+  /** Time options for opening hours: 00:00, 00:15, 00:30, 00:45, ... 23:45 (European 24h). */
+  timeOptions: string[] = (() => {
+    const opts: string[] = [];
+    for (let h = 0; h < 24; h++) {
+      for (const m of [0, 15, 30, 45]) {
+        opts.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+      }
+    }
+    return opts;
+  })();
+
+  copyFromDayKey = 'monday';
+
+  /** Role keys for personnel-per-shift (stored in opening_hours JSON per day). */
+  readonly staffRoleKeys: { key: string; labelKey: string }[] = [
+    { key: 'bar', labelKey: 'SETTINGS.STAFF_BAR' },
+    { key: 'waiter', labelKey: 'SETTINGS.STAFF_WAITER' },
+    { key: 'kitchen', labelKey: 'SETTINGS.STAFF_KITCHEN' },
+    { key: 'receptionist', labelKey: 'SETTINGS.STAFF_RECEPTIONIST' },
+  ];
+
+  /** Four inputs → saved as unique non-zero percentages (max 4); all zero = tips disabled in POS */
+  tipPresetEdit: number[] = [5, 10, 15, 20];
+
+  openingHours: Record<string, {
+    open: string;
+    close: string;
+    closed: boolean;
+    hasBreak?: boolean;
+    morningOpen?: string;
+    morningClose?: string;
+    eveningOpen?: string;
+    eveningClose?: string;
+    bar?: number;
+    waiter?: number;
+    kitchen?: number;
+    receptionist?: number;
+  }> = {};
+
+  formData: Partial<TenantSettings> = {
+    name: '',
+    business_type: null,
+    description: null,
+    phone: null,
+    whatsapp: null,
+    email: null,
+    address: null,
+    website: null,
+    tax_id: null,
+    cif: null,
+    ccc: null,
+    default_tax_id: null,
+    opening_hours: null,
+    currency_code: 'EUR',
+    stripe_secret_key: null,
+    stripe_publishable_key: null,
+    revolut_merchant_secret: null,
+    immediate_payment_required: false,
+    timezone: null,
+    country_code: null,
+    smtp_host: null,
+    smtp_port: null,
+    smtp_use_tls: null,
+    smtp_user: null,
+    smtp_password: null,
+    email_from: null,
+    email_from_name: null,
+    reservation_confirmation_email_subject: null,
+    reservation_confirmation_email_body: null,
+    public_background_color: null,
+    reservation_prepayment_cents: null,
+    reservation_prepayment_text: null,
+    reservation_cancellation_policy: null,
+    reservation_arrival_tolerance_minutes: null,
+    reservation_average_table_turn_minutes: null,
+    reservation_slot_minutes: null,
+    reservation_max_guests_per_slot: null,
+    reservation_walk_in_tables_reserved: 0,
+    reservation_dress_code: null,
+    reservation_reminder_24h_enabled: false,
+    reservation_reminder_2h_enabled: false,
+    guest_birthday_capture_enabled: true,
+    guest_birthday_marketing_enabled: false,
+    guest_birthday_consent_text: null,
+    delivery_fee_cents: 0,
+    delivery_radius_meters: null,
+    delivery_postal_codes: null,
+    public_google_review_url: null,
+    public_google_maps_url: null,
+    public_openstreetmap_url: null,
+    public_terms_of_service_url: null,
+    public_privacy_policy_url: null,
+    tip_tax_rate_percent: 0,
+    tip_entry_mode: 'preset' as 'preset' | 'overpayment',
+    ui_modules: { ...DEFAULT_TENANT_UI_MODULES },
+    clock_qr_location_verify: false,
+    fiscal_mode: 'off' as 'off' | 'test' | 'live',
+    fiscal_invoice_series: 'VF',
+    fiscal_aeat_api_secret: null as string | null,
+    fiscal_country: null as string | null,
+    tse_mode: 'off' as 'off' | 'test' | 'live',
+    tse_client_id: null as string | null,
+    tse_api_secret: null as string | null,
+  };
+
+  allTimezones: string[] = [];
+  filteredTimezones: string[] = [];
+  timezoneSearch = '';
+  timezoneDropdownOpen = false;
+
+  ngOnInit() {
+    try {
+      this.allTimezones = (Intl as any).supportedValuesOf('timeZone');
+    } catch {
+      this.allTimezones = [];
+    }
+    this.filteredTimezones = this.allTimezones;
+    const section = this.route.snapshot.queryParams['section'];
+    if (section === 'reservations') {
+      this.activeSection.set('reservations');
+    }
+    if (section === 'contract-templates') {
+      this.activeSection.set('contract-templates');
+    }
+    if (section === 'delivery-integrations') {
+      this.activeSection.set('delivery-integrations');
+    }
+    if (section === 'social-posts') {
+      this.activeSection.set('social-posts');
+    }
+    this.route.queryParams.subscribe((params) => {
+      const s = params['section'];
+      if (s === 'reservations') {
+        this.activeSection.set('reservations');
+      }
+      if (s === 'contract-templates') {
+        this.activeSection.set('contract-templates');
+      }
+      if (s === 'delivery-integrations') {
+        this.activeSection.set('delivery-integrations');
+      }
+      if (s === 'social-posts') {
+        this.activeSection.set('social-posts');
+      }
+    });
+    this.loadSettings();
+  }
+
+  settingsModuleTabVisible(key: TenantUiModuleKey): boolean {
+    const s = this.settings();
+    if (!s?.ui_modules) return true;
+    return s.ui_modules[key] !== false;
+  }
+
+  contractTemplatesTabVisible(): boolean {
+    const u = this.api.getCurrentUser();
+    if (!u) return false;
+    return this.permissions.hasPermission(u, 'staff_contract:manage');
+  }
+
+  loadSettings() {
+    this.loading.set(true);
+    this.api.getTenantSettings().subscribe({
+      next: (settings) => {
+        this.settings.set(settings);
+        this.formData = {
+          name: settings.name || '',
+          business_type: settings.business_type || null,
+          description: settings.description || null,
+          phone: settings.phone || null,
+          whatsapp: settings.whatsapp || null,
+          email: settings.email || null,
+          address: settings.address || null,
+          website: settings.website || null,
+          tax_id: settings.tax_id || null,
+          cif: settings.cif || null,
+          ccc: settings.ccc || null,
+          default_tax_id: settings.default_tax_id ?? null,
+          opening_hours: settings.opening_hours || null,
+          currency_code: settings.currency_code || 'EUR',
+          stripe_secret_key: null,
+          stripe_publishable_key: settings.stripe_publishable_key || null,
+          revolut_merchant_secret: null,
+          immediate_payment_required: settings.immediate_payment_required || false,
+          timezone: settings.timezone || null,
+          country_code: settings.country_code ?? null,
+          smtp_host: settings.smtp_host ?? null,
+          smtp_port: settings.smtp_port ?? null,
+          smtp_use_tls: settings.smtp_use_tls ?? null,
+          smtp_user: settings.smtp_user ?? null,
+          smtp_password: null,
+          email_from: settings.email_from ?? null,
+          email_from_name: settings.email_from_name ?? null,
+          reservation_confirmation_email_subject: settings.reservation_confirmation_email_subject ?? null,
+          reservation_confirmation_email_body: settings.reservation_confirmation_email_body ?? null,
+          public_background_color: settings.public_background_color ?? null,
+          reservation_prepayment_cents: settings.reservation_prepayment_cents ?? null,
+          reservation_prepayment_text: settings.reservation_prepayment_text ?? null,
+          reservation_cancellation_policy: settings.reservation_cancellation_policy ?? null,
+          reservation_arrival_tolerance_minutes: settings.reservation_arrival_tolerance_minutes ?? null,
+          reservation_average_table_turn_minutes: settings.reservation_average_table_turn_minutes ?? null,
+          reservation_slot_minutes: settings.reservation_slot_minutes ?? null,
+          reservation_max_guests_per_slot: settings.reservation_max_guests_per_slot ?? null,
+          reservation_walk_in_tables_reserved: settings.reservation_walk_in_tables_reserved ?? 0,
+          reservation_dress_code: settings.reservation_dress_code ?? null,
+          reservation_reminder_24h_enabled: settings.reservation_reminder_24h_enabled ?? false,
+          reservation_reminder_2h_enabled: settings.reservation_reminder_2h_enabled ?? false,
+          guest_birthday_capture_enabled: settings.guest_birthday_capture_enabled ?? true,
+          guest_birthday_marketing_enabled: settings.guest_birthday_marketing_enabled ?? false,
+          guest_birthday_consent_text: settings.guest_birthday_consent_text ?? null,
+          delivery_fee_cents: settings.delivery_fee_cents ?? 0,
+          delivery_radius_meters: settings.delivery_radius_meters ?? null,
+          delivery_postal_codes: this.formatDeliveryPostalCodesForForm(settings.delivery_postal_codes),
+          public_google_review_url: settings.public_google_review_url ?? null,
+          public_google_maps_url: settings.public_google_maps_url ?? null,
+          public_openstreetmap_url: settings.public_openstreetmap_url ?? null,
+          public_terms_of_service_url: settings.public_terms_of_service_url ?? null,
+          public_privacy_policy_url: settings.public_privacy_policy_url ?? null,
+          tip_tax_rate_percent: settings.tip_tax_rate_percent ?? 0,
+          tip_entry_mode:
+            settings.tip_entry_mode === 'overpayment' ? 'overpayment' : 'preset',
+          ui_modules: {
+            ...DEFAULT_TENANT_UI_MODULES,
+            ...(settings.ui_modules || {}),
+          },
+          clock_qr_active: settings.clock_qr_active ?? false,
+          clock_qr_location_verify: settings.clock_qr_location_verify ?? false,
+          fiscal_mode:
+            settings.fiscal_mode === 'test' || settings.fiscal_mode === 'live'
+              ? settings.fiscal_mode
+              : 'off',
+          fiscal_invoice_series: settings.fiscal_invoice_series?.trim() || 'VF',
+          fiscal_aeat_api_secret: null,
+          fiscal_country: settings.fiscal_country?.trim()?.toUpperCase() || null,
+          tse_mode:
+            settings.tse_mode === 'test' || settings.tse_mode === 'live' ? settings.tse_mode : 'off',
+          tse_client_id: settings.tse_client_id?.trim() || null,
+          tse_api_secret: null,
+        };
+        this.clockQrLastToken.set(null);
+        this.clockQrTokenLoading.set(false);
+        if (settings.clock_qr_active && settings.clock_qr_downloadable) {
+          this.loadPersistedClockQrToken();
+        }
+        const tip = settings.tip_preset_percents;
+        if (Array.isArray(tip) && tip.length > 0) {
+          this.tipPresetEdit = [...tip.map((x) => Math.min(100, Math.max(0, Math.floor(Number(x) || 0))))];
+          while (this.tipPresetEdit.length < 4) {
+            this.tipPresetEdit.push(0);
+          }
+          this.tipPresetEdit = this.tipPresetEdit.slice(0, 4);
+        } else if (Array.isArray(tip) && tip.length === 0) {
+          this.tipPresetEdit = [0, 0, 0, 0];
+        } else {
+          this.tipPresetEdit = [5, 10, 15, 20];
+        }
+        this.timezoneSearch = settings.timezone || '';
+        this.parseOpeningHours(settings.opening_hours);
+        this.loadOpeningHoursSchedule();
+        this.syncPrepaymentFieldsFromCents();
+        this.loadTaxes();
+        this.autoGenerateReviewUrlFromPlaceId();
+        this.loading.set(false);
+      },
+      error: (err) => {
+        this.error.set('Failed to load settings. Please try again.');
+        this.loading.set(false);
+        console.error('Error loading settings:', err);
+      }
+    });
+  }
+
+  loadTaxes() {
+    // Load all taxes (not only "valid today") so the dropdown never ends up empty
+    // because of validity-period edge cases (timezones, future valid_from).
+    this.api.getTaxes(false).subscribe({
+      next: (list) => this.taxes.set(list),
+      error: () => this.taxes.set([]),
+    });
+  }
+
+  /** Show postal codes as one-per-line in settings textarea. */
+  private formatDeliveryPostalCodesForForm(raw: string | null | undefined): string | null {
+    if (!raw || !String(raw).trim()) return null;
+    try {
+      const parsed = JSON.parse(String(raw));
+      if (Array.isArray(parsed)) {
+        return parsed.map((x) => String(x).trim()).filter(Boolean).join('\n');
+      }
+    } catch {
+      /* plain text */
+    }
+    return String(raw);
+  }
+
+  loadOpeningHoursSchedule(): void {
+    this.loadingOpeningHoursSchedule.set(true);
+    this.api.getOpeningHoursSchedule().subscribe({
+      next: (res) => {
+        this.openingHoursScheduleBaselines.set(res.baselines || []);
+        this.openingHoursScheduleOverrides.set(res.overrides || []);
+        this.loadingOpeningHoursSchedule.set(false);
+      },
+      error: () => {
+        this.openingHoursScheduleBaselines.set([]);
+        this.openingHoursScheduleOverrides.set([]);
+        this.loadingOpeningHoursSchedule.set(false);
+      },
+    });
+  }
+
+  /** Snapshot of the weekly grid as stored JSON (same shape as tenant.opening_hours). */
+  private weeklyOpeningHoursJsonFromGrid(): string {
+    this.serializeOpeningHours();
+    const s = this.formData.opening_hours;
+    return (s && String(s).trim()) ? String(s).trim() : '{}';
+  }
+
+  addBaselineSchedule(): void {
+    const eff = (this.baselineScheduleEffectiveDate || '').trim();
+    if (!eff) {
+      this.error.set(this.translate.instant('SETTINGS.OPENING_HOURS_EFFECTIVE_FROM_REQUIRED'));
+      return;
+    }
+    const oh = this.weeklyOpeningHoursJsonFromGrid();
+    this.saving.set(true);
+    this.error.set(null);
+    this.api
+      .createOpeningHoursBaseline({
+        effective_from: eff,
+        opening_hours: oh,
+        note: this.baselineScheduleNote.trim() || null,
+      })
+      .subscribe({
+        next: () => {
+          this.baselineScheduleEffectiveDate = '';
+          this.baselineScheduleNote = '';
+          this.loadOpeningHoursSchedule();
+          this.saving.set(false);
+        },
+        error: (err) => {
+          this.saving.set(false);
+          const d = err?.error?.detail;
+          this.error.set(typeof d === 'string' ? d : this.translate.instant('COMMON.ERROR'));
+        },
+      });
+  }
+
+  deleteBaselineSchedule(id: number): void {
+    if (!confirm(this.translate.instant('SETTINGS.OPENING_HOURS_CONFIRM_DELETE'))) return;
+    this.api.deleteOpeningHoursBaseline(id).subscribe({
+      next: () => this.loadOpeningHoursSchedule(),
+      error: () => {},
+    });
+  }
+
+  addOverrideSchedule(): void {
+    const df = (this.overrideDateFrom || '').trim();
+    const dt = (this.overrideDateTo || '').trim();
+    if (!df || !dt) {
+      this.error.set(this.translate.instant('SETTINGS.OPENING_HOURS_DATES_REQUIRED'));
+      return;
+    }
+    const closed = this.overrideClosedOnly;
+    const oh = closed ? null : this.weeklyOpeningHoursJsonFromGrid();
+    this.saving.set(true);
+    this.error.set(null);
+    this.api
+      .createOpeningHoursOverride({
+        date_from: df,
+        date_to: dt,
+        closed,
+        opening_hours: oh,
+        note: this.overrideScheduleNote.trim() || null,
+      })
+      .subscribe({
+        next: () => {
+          this.overrideDateFrom = '';
+          this.overrideDateTo = '';
+          this.overrideScheduleNote = '';
+          this.overrideClosedOnly = false;
+          this.loadOpeningHoursSchedule();
+          this.saving.set(false);
+        },
+        error: (err) => {
+          this.saving.set(false);
+          const d = err?.error?.detail;
+          this.error.set(typeof d === 'string' ? d : this.translate.instant('COMMON.ERROR'));
+        },
+      });
+  }
+
+  deleteOverrideSchedule(id: number): void {
+    if (!confirm(this.translate.instant('SETTINGS.OPENING_HOURS_CONFIRM_DELETE'))) return;
+    this.api.deleteOpeningHoursOverride(id).subscribe({
+      next: () => this.loadOpeningHoursSchedule(),
+      error: () => {},
+    });
+  }
+
+  loadTaxesAll() {
+    this.api.getTaxes(false).subscribe({
+      next: (list) => this.taxes.set(list),
+      error: () => this.taxes.set([]),
+    });
+  }
+
+  addTax() {
+    this.taxError.set('');
+    const validFrom = this.newTaxValidFrom || new Date().toISOString().slice(0, 10);
+    const validTo = this.newTaxValidTo?.trim() || null;
+    this.api.createTax({
+      name: this.newTaxName.trim(),
+      rate_percent: this.newTaxRate,
+      valid_from: validFrom,
+      valid_to: validTo ?? undefined,
+    }).subscribe({
+      next: () => {
+        this.newTaxName = '';
+        this.newTaxRate = 10;
+        this.newTaxValidFrom = new Date().toISOString().slice(0, 10);
+        this.newTaxValidTo = '';
+        this.loadTaxesAll();
+        this.loadTaxes();
+      },
+      error: (err) => this.taxError.set(err?.error?.detail || 'Failed to add tax'),
+    });
+  }
+
+  deleteTax(id: number) {
+    if (!confirm(this.translate.instant('SETTINGS.CONFIRM_DELETE_TAX'))) return;
+    this.taxError.set('');
+    this.api.deleteTax(id).subscribe({
+      next: () => {
+        this.loadTaxesAll();
+        this.loadTaxes();
+      },
+      error: (err) => this.taxError.set(err?.error?.detail || 'Failed to delete tax'),
+    });
+  }
+
+  loadProviders() {
+    this.providersLoading.set(true);
+    this.providersError.set('');
+    this.api.getProviders(true).subscribe({
+      next: (list) => {
+        this.providers.set(list);
+        this.providersLoading.set(false);
+      },
+      error: (err) => {
+        this.providersError.set(err?.error?.detail || 'Failed to load providers');
+        this.providersLoading.set(false);
+      },
+    });
+  }
+
+  isOwnProvider(p: Provider): boolean {
+    const tenantId = this.api.getCurrentUser()?.tenant_id;
+    return p.tenant_id != null && tenantId != null && p.tenant_id === tenantId;
+  }
+
+  toggleProviderProducts(p: Provider) {
+    const id = p.id!;
+    const expanded = new Set(this.providerProductsExpanded());
+    if (expanded.has(id)) {
+      expanded.delete(id);
+    } else {
+      expanded.add(id);
+      this.api.listProviderProducts(id).subscribe({
+        next: (products) => {
+          this.providerProductsMap.update((m) => ({ ...m, [id]: products }));
+        },
+      });
+    }
+    this.providerProductsExpanded.set(expanded);
+  }
+
+  formatProviderPrice(cents: number | null | undefined): string {
+    if (cents == null) return '—';
+    return (cents / 100).toFixed(2) + ' €';
+  }
+
+  openAddProviderModal() {
+    this.newProviderName = '';
+    this.newProviderPhone = '';
+    this.newProviderEmail = '';
+    this.providerError.set('');
+    this.showAddProviderModal.set(true);
+  }
+
+  closeAddProviderModal() {
+    this.showAddProviderModal.set(false);
+  }
+
+  saveProvider() {
+    this.providerError.set('');
+    const name = this.newProviderName?.trim();
+    if (!name) {
+      this.providerError.set(this.translate.instant('SETTINGS.PROVIDER_NAME_REQUIRED'));
+      return;
+    }
+    const body: ProviderCreate = {
+      name,
+      phone: this.newProviderPhone?.trim() || undefined,
+      email: this.newProviderEmail?.trim() || undefined,
+    };
+    this.api.createProvider(body).subscribe({
+      next: () => {
+        this.closeAddProviderModal();
+        this.loadProviders();
+      },
+      error: (err) => this.providerError.set(err?.error?.detail || 'Failed to add provider'),
+    });
+  }
+
+  openEditProviderModal(p: Provider) {
+    this.editingProvider.set(p);
+    this.editProviderName = p.name || '';
+    this.editProviderUrl = p.url || '';
+    this.editProviderPhone = p.phone || '';
+    this.editProviderEmail = p.email || '';
+    this.editProviderActive = p.is_active !== false;
+    this.editProviderError.set('');
+    this.showEditProviderModal.set(true);
+  }
+
+  closeEditProviderModal() {
+    this.showEditProviderModal.set(false);
+    this.editingProvider.set(null);
+  }
+
+  saveEditedProvider() {
+    const p = this.editingProvider();
+    const id = p?.id;
+    if (id == null) return;
+    this.editProviderError.set('');
+    const name = this.editProviderName?.trim();
+    if (!name) {
+      this.editProviderError.set(this.translate.instant('SETTINGS.PROVIDER_NAME_REQUIRED'));
+      return;
+    }
+    const body: PersonalProviderPatch = {
+      name,
+      url: this.editProviderUrl?.trim() || null,
+      phone: this.editProviderPhone?.trim() || null,
+      email: this.editProviderEmail?.trim() || null,
+      is_active: this.editProviderActive,
+    };
+    this.api.patchPersonalProvider(id, body).subscribe({
+      next: () => {
+        this.closeEditProviderModal();
+        this.loadProviders();
+      },
+      error: (err) =>
+        this.editProviderError.set(
+          typeof err?.error?.detail === 'string'
+            ? err.error.detail
+            : 'Failed to update provider',
+        ),
+    });
+  }
+
+  openAddProductModal(p: Provider) {
+    this.selectedProviderForProduct.set(p);
+    this.newProductName = '';
+    this.newProductPrice = null;
+    this.newProductCategory = '';
+    this.newProductOnSale = true;
+    this.providerProductError.set('');
+    this.showAddProductModal.set(true);
+  }
+
+  closeAddProductModal() {
+    this.showAddProductModal.set(false);
+    this.selectedProviderForProduct.set(null);
+  }
+
+  saveProviderProduct() {
+    const provider = this.selectedProviderForProduct();
+    const providerId = provider?.id;
+    if (providerId == null) return;
+    this.providerProductError.set('');
+    const name = this.newProductName?.trim();
+    if (!name) {
+      this.providerProductError.set(this.translate.instant('SETTINGS.PRODUCT_NAME_REQUIRED'));
+      return;
+    }
+    const body: ProviderProductCreate = {
+      name,
+      price_cents: this.newProductPrice ?? undefined,
+      category: this.newProductCategory?.trim() || undefined,
+      availability: this.newProductOnSale,
+    };
+    this.api.createProductForProvider(providerId, body).subscribe({
+      next: () => {
+        this.closeAddProductModal();
+        this.api.listProviderProducts(providerId).subscribe({
+          next: (products) => {
+            this.providerProductsMap.update((m) => ({ ...m, [providerId]: products }));
+          },
+        });
+      },
+      error: (err) => this.providerProductError.set(err?.error?.detail || 'Failed to add product'),
+    });
+  }
+
+  loadOtpStatus() {
+    this.otpStatusLoading.set(true);
+    this.otpError.set(null);
+    this.api.getOtpStatus().subscribe({
+      next: (status) => {
+        this.otpStatus.set(status);
+        this.otpStatusLoading.set(false);
+      },
+      error: () => {
+        this.otpStatus.set(null);
+        this.otpStatusLoading.set(false);
+      },
+    });
+  }
+
+  startOtpSetup() {
+    this.otpError.set(null);
+    this.otpSettingUp.set(true);
+    this.api.setupOtp().subscribe({
+      next: (result) => {
+        this.otpSetupResult.set(result);
+        this.otpSettingUp.set(false);
+      },
+      error: (err) => {
+        this.otpError.set(err?.error?.detail || 'Failed to setup OTP');
+        this.otpSettingUp.set(false);
+      },
+    });
+  }
+
+  copyOtpSecret() {
+    const secret = this.otpSetupResult()?.secret;
+    if (secret && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(secret);
+    }
+  }
+
+  confirmOtpEnable() {
+    if (!this.otpConfirmCode || this.otpConfirmCode.length !== 6) return;
+    this.otpError.set(null);
+    this.otpConfirming.set(true);
+    this.api.confirmOtp(this.otpConfirmCode).subscribe({
+      next: () => {
+        this.otpStatus.set({ otp_enabled: true });
+        this.otpSetupResult.set(null);
+        this.otpConfirmCode = '';
+        this.otpConfirming.set(false);
+      },
+      error: (err) => {
+        this.otpError.set(err?.error?.detail || 'Invalid code');
+        this.otpConfirming.set(false);
+      },
+    });
+  }
+
+  cancelOtpSetup() {
+    this.otpSetupResult.set(null);
+    this.otpConfirmCode = '';
+    this.otpError.set(null);
+    this.loadOtpStatus();
+  }
+
+  disableOtp() {
+    if (!this.otpDisableCode || this.otpDisableCode.length !== 6) return;
+    this.otpError.set(null);
+    this.otpDisabling.set(true);
+    this.api.disableOtp(this.otpDisableCode).subscribe({
+      next: () => {
+        this.otpStatus.set({ otp_enabled: false });
+        this.otpDisableCode = '';
+        this.otpDisabling.set(false);
+      },
+      error: (err) => {
+        this.otpError.set(err?.error?.detail || 'Invalid code');
+        this.otpDisabling.set(false);
+      },
+    });
+  }
+
+  isTenantOwner(): boolean {
+    return this.api.getCurrentUser()?.role === 'owner';
+  }
+
+  isTenantOwnerOrAdmin(): boolean {
+    const role = this.api.getCurrentUser()?.role;
+    return role === 'owner' || role === 'admin';
+  }
+
+  downloadTenantDataExport(): void {
+    this.purgeError.set(null);
+    this.dataExporting.set(true);
+    this.api.downloadTenantDataExport().subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'tenant-data-export.zip';
+        a.click();
+        URL.revokeObjectURL(url);
+        this.dataExporting.set(false);
+      },
+      error: () => {
+        this.purgeError.set(this.translate.instant('SETTINGS.DATA_EXPORT_FAILED'));
+        this.dataExporting.set(false);
+      },
+    });
+  }
+
+  purgeTenantForever(): void {
+    this.purgeError.set(null);
+    const name = this.purgeConfirmTenantName.trim();
+    this.purging.set(true);
+    this.api.purgeTenant(name).subscribe({
+      next: () => {
+        this.api.logout().subscribe(() => this.router.navigateByUrl('/login'));
+      },
+      error: (err) => {
+        const detail = err?.error?.detail;
+        this.purgeError.set(
+          typeof detail === 'string' ? detail : this.translate.instant('SETTINGS.PURGE_FAILED'),
+        );
+        this.purging.set(false);
+      },
+    });
+  }
+
+  filterTimezones() {
+    const q = this.timezoneSearch.toLowerCase();
+    this.filteredTimezones = q
+      ? this.allTimezones.filter(tz => tz.toLowerCase().includes(q))
+      : this.allTimezones;
+  }
+
+  selectTimezone(tz: string) {
+    this.formData.timezone = tz;
+    this.timezoneSearch = tz;
+    this.timezoneDropdownOpen = false;
+  }
+
+  parseOpeningHours(jsonString: string | null | undefined) {
+    // Initialize all days with default values
+    this.daysOfWeek.forEach(day => {
+      this.openingHours[day.key] = {
+        open: '09:00',
+        close: '22:00',
+        closed: false,
+        hasBreak: false,
+        morningOpen: '09:00',
+        morningClose: '14:00',
+        eveningOpen: '17:00',
+        eveningClose: '22:00',
+        bar: 0,
+        waiter: 0,
+        kitchen: 0,
+        receptionist: 0,
+      };
+    });
+
+    // Parse JSON if provided; round all times to :00, :15, :30, :45
+    if (jsonString) {
+      try {
+        const parsed = JSON.parse(jsonString);
+        this.daysOfWeek.forEach(day => {
+          if (parsed[day.key]) {
+            const dayData = parsed[day.key];
+            const num = (v: unknown) => (typeof v === 'number' && v >= 0 && Number.isInteger(v) ? v : 0);
+            this.openingHours[day.key] = {
+              open: this.roundTimeToQuarter(dayData.open || '09:00'),
+              close: this.roundTimeToQuarter(dayData.close || '22:00'),
+              closed: dayData.closed === true,
+              hasBreak: dayData.hasBreak === true,
+              morningOpen: this.roundTimeToQuarter(dayData.morningOpen || dayData.open || '09:00'),
+              morningClose: this.roundTimeToQuarter(dayData.morningClose || '14:00'),
+              eveningOpen: this.roundTimeToQuarter(dayData.eveningOpen || '17:00'),
+              eveningClose: this.roundTimeToQuarter(dayData.eveningClose || dayData.close || '22:00'),
+              bar: num(dayData.bar),
+              waiter: num(dayData.waiter),
+              kitchen: num(dayData.kitchen),
+              receptionist: num(dayData.receptionist),
+            };
+          }
+        });
+      } catch (e) {
+        console.error('Error parsing opening hours JSON:', e);
+      }
+    }
+  }
+
+  toggleDayClosed(dayKey: string, event: Event) {
+    const checked = (event.target as HTMLInputElement).checked;
+    this.openingHours[dayKey].closed = !checked;
+    this.serializeOpeningHours();
+  }
+
+  toggleBreak(dayKey: string, event: Event) {
+    const checked = (event.target as HTMLInputElement).checked;
+    this.openingHours[dayKey].hasBreak = checked;
+    // If enabling break, initialize with default values if not set
+    if (checked) {
+      if (!this.openingHours[dayKey].morningOpen) {
+        this.openingHours[dayKey].morningOpen = this.openingHours[dayKey].open || '09:00';
+      }
+      if (!this.openingHours[dayKey].morningClose) {
+        this.openingHours[dayKey].morningClose = '14:00';
+      }
+      if (!this.openingHours[dayKey].eveningOpen) {
+        this.openingHours[dayKey].eveningOpen = '17:00';
+      }
+      if (!this.openingHours[dayKey].eveningClose) {
+        this.openingHours[dayKey].eveningClose = this.openingHours[dayKey].close || '22:00';
+      }
+    }
+    this.serializeOpeningHours();
+  }
+
+  /** Round time string to nearest 15 minutes (00, 15, 30, 45). European 24h. */
+  roundTimeToQuarter(t: string | undefined): string {
+    if (!t) return '09:00';
+    const [h, m] = t.split(':').map(Number);
+    const quarter = Math.round((h * 60 + (m || 0)) / 15) * 15;
+    const nh = Math.floor(quarter / 60) % 24;
+    const nm = quarter % 60;
+    return `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`;
+  }
+
+  updateOpeningHours(dayKey: string, field: 'open' | 'close' | 'morningOpen' | 'morningClose' | 'eveningOpen' | 'eveningClose', event: Event) {
+    const value = (event.target as HTMLInputElement | HTMLSelectElement).value;
+    this.setOpeningHourValue(dayKey, field, value);
+  }
+
+  setOpeningHourValue(dayKey: string, field: 'open' | 'close' | 'morningOpen' | 'morningClose' | 'eveningOpen' | 'eveningClose', value: string) {
+    (this.openingHours[dayKey] as any)[field] = this.roundTimeToQuarter(value);
+    this.serializeOpeningHours();
+  }
+
+  copyDayToOtherDays(sourceKey: string) {
+    const source = this.openingHours[sourceKey];
+    if (!source) return;
+    this.daysOfWeek.forEach(day => {
+      if (day.key === sourceKey) return;
+      this.openingHours[day.key] = {
+        ...source,
+        open: source.open,
+        close: source.close,
+        closed: source.closed,
+        hasBreak: source.hasBreak,
+        morningOpen: source.morningOpen,
+        morningClose: source.morningClose,
+        eveningOpen: source.eveningOpen,
+        eveningClose: source.eveningClose,
+        bar: source.bar ?? 0,
+        waiter: source.waiter ?? 0,
+        kitchen: source.kitchen ?? 0,
+        receptionist: source.receptionist ?? 0,
+      };
+    });
+    this.serializeOpeningHours();
+  }
+
+  /** Formatted opening hours summary in current locale, e.g. "Mon–Fri 09:00–22:00, Sat 10:00–20:00, Sun closed". */
+  getOpeningHoursSummary(): string {
+    const locale = this.translate.currentLang || this.translate.defaultLang || 'en';
+    const formatter = new Intl.DateTimeFormat(locale, { weekday: 'short' });
+    const dayShort = (key: string) => {
+      const i = this.daysOfWeek.findIndex(d => d.key === key);
+      if (i < 0) return key;
+      return formatter.format(new Date(2024, 0, 1 + i));
+    };
+    const closedLabel = this.translate.instant('SETTINGS.CLOSED');
+    const parts: string[] = [];
+    let i = 0;
+    while (i < this.daysOfWeek.length) {
+      const day = this.daysOfWeek[i];
+      const d = this.openingHours[day.key];
+      if (!d) {
+        i++;
+        continue;
+      }
+      if (d.closed) {
+        parts.push(`${dayShort(day.key)} ${closedLabel}`);
+        i++;
+        continue;
+      }
+      const range = d.hasBreak
+        ? `${d.morningOpen}–${d.morningClose}, ${d.eveningOpen}–${d.eveningClose}`
+        : `${d.open}–${d.close}`;
+      let j = i + 1;
+      while (j < this.daysOfWeek.length) {
+        const next = this.openingHours[this.daysOfWeek[j].key];
+        if (!next || next.closed !== d.closed || next.hasBreak !== d.hasBreak) break;
+        if (d.hasBreak) {
+          if (next.morningOpen !== d.morningOpen || next.morningClose !== d.morningClose ||
+              next.eveningOpen !== d.eveningOpen || next.eveningClose !== d.eveningClose) break;
+        } else {
+          if (next.open !== d.open || next.close !== d.close) break;
+        }
+        j++;
+      }
+      if (j > i + 1) {
+        parts.push(`${dayShort(day.key)}–${dayShort(this.daysOfWeek[j - 1].key)} ${range}`);
+      } else {
+        parts.push(`${dayShort(day.key)} ${range}`);
+      }
+      i = j;
+    }
+    return parts.join(', ');
+  }
+
+  serializeOpeningHours() {
+    const serialized: Record<string, any> = {};
+    this.daysOfWeek.forEach(day => {
+      const dayData = this.openingHours[day.key];
+      const staff = {
+        bar: dayData.bar ?? 0,
+        waiter: dayData.waiter ?? 0,
+        kitchen: dayData.kitchen ?? 0,
+        receptionist: dayData.receptionist ?? 0,
+      };
+      if (dayData.hasBreak) {
+        serialized[day.key] = {
+          closed: dayData.closed,
+          hasBreak: true,
+          morningOpen: dayData.morningOpen,
+          morningClose: dayData.morningClose,
+          eveningOpen: dayData.eveningOpen,
+          eveningClose: dayData.eveningClose,
+          open: dayData.morningOpen,
+          close: dayData.eveningClose,
+          ...staff,
+        };
+      } else {
+        serialized[day.key] = {
+          closed: dayData.closed,
+          open: dayData.open,
+          close: dayData.close,
+          ...staff,
+        };
+      }
+    });
+    this.formData.opening_hours = JSON.stringify(serialized);
+  }
+
+  getStaffRequired(dayKey: string, roleKey: string): number {
+    const day = this.openingHours[dayKey];
+    return day && typeof (day as any)[roleKey] === 'number' ? (day as any)[roleKey] : 0;
+  }
+
+  setStaffRequired(dayKey: string, roleKey: string, value: number): void {
+    const role = roleKey as 'bar' | 'waiter' | 'kitchen' | 'receptionist';
+    const n = Math.max(0, Math.min(99, Math.floor(Number(value)) || 0));
+    (this.openingHours[dayKey] as any)[role] = n;
+    this.serializeOpeningHours();
+  }
+
+  onLogoSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
+        this.error.set(
+          this.translate.instant('COMMON.IMAGE_FILE_TOO_LARGE', { maxMb: MAX_IMAGE_UPLOAD_MB }),
+        );
+        return;
+      }
+      this.logoFile = file;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        this.logoPreview.set(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+      this.error.set(null);
+    }
+  }
+
+  removeLogo() {
+    this.logoFile = null;
+    this.logoPreview.set(null);
+    this.api.deleteTenantLogo().subscribe({
+      next: (updated) => {
+        this.settings.set(updated);
+      },
+      error: () => {},
+    });
+  }
+
+  onHeaderBackgroundSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input?.files?.[0];
+    input.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/') || !['image/jpeg', 'image/png', 'image/webp', 'image/avif'].includes(file.type)) {
+      this.error.set('Please select a JPG, PNG, WebP or AVIF image.');
+      return;
+    }
+    this.headerBackgroundFile = file;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      this.headerBackgroundPreview.set(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+    this.error.set(null);
+  }
+
+  removeHeaderBackground() {
+    this.headerBackgroundFile = null;
+    this.headerBackgroundPreview.set(null);
+    this.api.deleteTenantHeaderBackground().subscribe({
+      next: (updated) => {
+        this.settings.set(updated);
+      },
+      error: () => {},
+    });
+  }
+
+  getHeaderBackgroundUrl(): string | null {
+    const s = this.settings();
+    if (!s?.header_background_filename || !s.id) return null;
+    return this.api.getTenantHeaderBackgroundUrl(s.header_background_filename, s.id);
+  }
+
+  getHeaderBackgroundDisplaySrc(): SafeResourceUrl | null {
+    const preview = this.headerBackgroundPreview();
+    if (preview) return preview;
+    const url = this.getHeaderBackgroundUrl();
+    return url ? this.sanitizer.bypassSecurityTrustResourceUrl(url) : null;
+  }
+
+  getLogoUrl(): string | null {
+    const settings = this.settings();
+    if (!settings?.logo_filename || !settings.id) return null;
+    return this.api.getTenantLogoUrl(settings.logo_filename, settings.id);
+  }
+
+  /** Safe URL for logo img (avoids Angular stripping API URL). Use for server logo; data URL from preview is used as-is. */
+  getDisplayLogoSrc(): string | SafeResourceUrl | null {
+    const preview = this.logoPreview();
+    if (preview) return preview;
+    const url = this.getLogoUrl();
+    return url ? this.sanitizer.bypassSecurityTrustResourceUrl(url) : null;
+  }
+
+  formatFileSize(bytes: number): string {
+    if (bytes < 1024) {
+      return `${bytes} B`;
+    } else if (bytes < 1024 * 1024) {
+      return `${(bytes / 1024).toFixed(1)} KB`;
+    } else {
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.clearSuccessDismissTimer();
+  }
+
+  private clearSuccessDismissTimer(): void {
+    if (this.successDismissTimer !== undefined) {
+      clearTimeout(this.successDismissTimer);
+      this.successDismissTimer = undefined;
+    }
+  }
+
+  private scheduleSuccessDismiss(): void {
+    this.clearSuccessDismissTimer();
+    this.successDismissTimer = setTimeout(() => {
+      this.successDismissTimer = undefined;
+      this.success.set(null);
+    }, SettingsComponent.SETTINGS_SUCCESS_TOAST_MS);
+  }
+
+  dismissSuccessToast(): void {
+    this.clearSuccessDismissTimer();
+    this.success.set(null);
+  }
+
+  saveSettings() {
+    this.saving.set(true);
+    this.error.set(null);
+    this.clearSuccessDismissTimer();
+    this.success.set(null);
+
+    const doLogoUpload = () => {
+      if (this.logoFile) {
+        this.api.uploadTenantLogo(this.logoFile).subscribe({
+          next: (updatedSettings) => {
+            this.settings.set(updatedSettings);
+            this.logoFile = null;
+            this.logoPreview.set(null);
+            this.updateSettings();
+          },
+          error: (err) => {
+            this.error.set('Failed to upload logo. Please try again.');
+            this.saving.set(false);
+            console.error('Error uploading logo:', err);
+          }
+        });
+      } else {
+        this.updateSettings();
+      }
+    };
+
+    if (this.headerBackgroundFile) {
+      this.api.uploadTenantHeaderBackground(this.headerBackgroundFile).subscribe({
+        next: (updatedSettings) => {
+          this.settings.set(updatedSettings);
+          this.headerBackgroundFile = null;
+          this.headerBackgroundPreview.set(null);
+          doLogoUpload();
+        },
+        error: (err) => {
+          this.error.set('Failed to upload header background. Please try again.');
+          this.saving.set(false);
+          console.error('Error uploading header background:', err);
+        }
+      });
+    } else {
+      doLogoUpload();
+    }
+  }
+
+  /** Auto-generate Google review URL from Place ID only.
+   * Input: "0x1234..." (Google's internal Place ID format).
+   * Output: "https://search.google.com/local/writereview?placeid=0x1234..."
+   * See Google Place ID Finder: https://developers.google.com/maps/documentation/javascript/examples/places-placeid-finder
+   */
+  autoGenerateReviewUrlFromPlaceId(): void {
+    const input = this.formData.public_google_review_url?.toString().trim();
+    if (!input) return;
+
+    // Check if it looks like a Pure Place ID (starts with 0x)
+    // Pure Place IDs are used by Google Place API, not the display Place IDs with /
+    const purePlaceIdRegex = /^[0-9a-f]{32,}(?:-[0-9a-f]{24})?$/i;
+    if (purePlaceIdRegex.test(input)) {
+      this.formData.public_google_review_url = `https://search.google.com/local/writereview?placeid=${input}`;
+      this.publicGoogleReviewAutoHint.set(true);
+      this.publicGoogleReviewHint.set('');
+      this.publicGoogleReviewUrlEmpty.set(false); // Place ID was pasted, now generating URL
+    } else {
+      // Not a Pure Place ID, keep user input as-is
+      this.publicGoogleReviewAutoHint.set(false);
+      this.publicGoogleReviewHint.set('');
+      if (input.includes('search.google.com') || input.includes('g.page')) {
+        this.publicGoogleReviewUrlEmpty.set(false); // Full URL pasted
+      }
+      if (input.includes('.g.page/')) {
+        this.publicGoogleReviewUrlEmpty.set(false); // Legacy URL
+      }
+    }
+  }
+
+  private updateSettings() {
+    // Ensure opening hours are serialized before saving
+    this.serializeOpeningHours();
+
+    // Prepare update data - only include stripe_secret_key if it was actually changed
+    const updateData = { ...this.formData };
+    delete (updateData as Record<string, unknown>)['clock_qr_active'];
+
+    // Always send reminder options so they are persisted (default false if unset)
+    updateData.reservation_reminder_24h_enabled = this.formData.reservation_reminder_24h_enabled ?? false;
+    updateData.reservation_reminder_2h_enabled = this.formData.reservation_reminder_2h_enabled ?? false;
+    updateData.guest_birthday_capture_enabled = this.formData.guest_birthday_capture_enabled ?? true;
+    updateData.guest_birthday_marketing_enabled = this.formData.guest_birthday_marketing_enabled ?? false;
+    updateData.guest_birthday_consent_text = (this.formData.guest_birthday_consent_text || '').trim() || null;
+
+    const seen = new Set<number>();
+    const tipPresets: number[] = [];
+    for (const x of this.tipPresetEdit) {
+      const v = Math.min(100, Math.max(0, Math.floor(Number(x) || 0)));
+      if (v > 0 && !seen.has(v)) {
+        seen.add(v);
+        tipPresets.push(v);
+      }
+      if (tipPresets.length >= 4) {
+        break;
+      }
+    }
+    updateData.tip_preset_percents = tipPresets;
+    updateData.tip_tax_rate_percent = Math.min(
+      100,
+      Math.max(0, Math.floor(Number(this.formData.tip_tax_rate_percent) || 0))
+    );
+    updateData.tip_entry_mode =
+      this.formData.tip_entry_mode === 'overpayment' ? 'overpayment' : 'preset';
+
+    updateData.ui_modules = {
+      ...DEFAULT_TENANT_UI_MODULES,
+      ...(this.formData.ui_modules || {}),
+    };
+
+    if (updateData.stripe_secret_key === '') {
+      delete updateData.stripe_secret_key;
+    }
+    if (updateData.revolut_merchant_secret === '') {
+      delete updateData.revolut_merchant_secret;
+    }
+    if (updateData.smtp_password === '') {
+      delete updateData.smtp_password;
+    }
+    if (updateData.fiscal_aeat_api_secret === '' || updateData.fiscal_aeat_api_secret == null) {
+      delete updateData.fiscal_aeat_api_secret;
+    }
+    if (updateData.tse_api_secret === '' || updateData.tse_api_secret == null) {
+      delete updateData.tse_api_secret;
+    }
+    const fc = (updateData.fiscal_country || '').toString().trim().toUpperCase();
+    updateData.fiscal_country = fc.length === 2 ? fc : null;
+    if (!updateData.tse_client_id) {
+      updateData.tse_client_id = null;
+    }
+
+    this.api.updateTenantSettings(updateData).subscribe({
+      next: (updatedSettings) => {
+        this.settings.set(updatedSettings);
+        this.api.applyTenantUiModulesFromSettings(updatedSettings);
+        this.success.set('Settings saved successfully!');
+        this.scheduleSuccessDismiss();
+        this.saving.set(false);
+      },
+      error: (err) => {
+        this.error.set('Failed to save settings. Please try again.');
+        this.saving.set(false);
+        console.error('Error updating settings:', err);
+      }
+    });
+  }
+
+  cancel() {
+    this.router.navigate(['/dashboard']);
+  }
+
+  useCurrentLocation() {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          this.formData.latitude = position.coords.latitude;
+          this.formData.longitude = position.coords.longitude;
+        },
+        (error) => {
+          console.error('Error getting location:', error);
+          this.error.set('Could not get your location. Please enter coordinates manually.');
+        },
+        { timeout: 10000, maximumAge: 60000 }
+      );
+    } else {
+      this.error.set('Geolocation is not supported by your browser.');
+    }
+  }
+
+  /** Load plain token after page load when server has an encrypted backup (persistent download). */
+  private loadPersistedClockQrToken(): void {
+    this.clockQrTokenLoading.set(true);
+    this.api.getTenantClockQrToken().subscribe({
+      next: (r) => {
+        this.clockQrLastToken.set(r.token);
+        this.settings.update((s) =>
+          s
+            ? {
+                ...s,
+                clock_qr_active: r.clock_qr_active,
+                clock_qr_downloadable: r.clock_qr_downloadable ?? true,
+              }
+            : s,
+        );
+        this.clockQrTokenLoading.set(false);
+      },
+      error: () => {
+        this.clockQrLastToken.set(null);
+        this.clockQrTokenLoading.set(false);
+      },
+    });
+  }
+
+  regenerateClockQr(): void {
+    this.clockQrBusy.set(true);
+    this.error.set(null);
+    this.api.regenerateTenantClockQr().subscribe({
+      next: (r) => {
+        this.formData.clock_qr_active = r.clock_qr_active;
+        this.clockQrLastToken.set(r.token);
+        this.settings.update((s) =>
+          s
+            ? {
+                ...s,
+                clock_qr_active: r.clock_qr_active,
+                clock_qr_downloadable: r.clock_qr_downloadable ?? true,
+              }
+            : s,
+        );
+        this.success.set(this.translate.instant('SETTINGS.CLOCK_QR_SAVED'));
+        this.scheduleSuccessDismiss();
+        this.clockQrBusy.set(false);
+      },
+      error: (err) => {
+        this.error.set(err?.error?.detail || 'Could not generate clock QR token.');
+        this.clockQrBusy.set(false);
+      },
+    });
+  }
+
+  disableClockQr(): void {
+    this.clockQrBusy.set(true);
+    this.error.set(null);
+    this.api.disableTenantClockQr().subscribe({
+      next: (r) => {
+        this.formData.clock_qr_active = r.clock_qr_active;
+        this.clockQrLastToken.set(null);
+        this.settings.update((s) =>
+          s
+            ? {
+                ...s,
+                clock_qr_active: r.clock_qr_active,
+                clock_qr_downloadable: r.clock_qr_downloadable ?? false,
+              }
+            : s,
+        );
+        this.success.set(this.translate.instant('SETTINGS.CLOCK_QR_DISABLED'));
+        this.scheduleSuccessDismiss();
+        this.clockQrBusy.set(false);
+      },
+      error: (err) => {
+        this.error.set(err?.error?.detail || 'Could not disable clock QR.');
+        this.clockQrBusy.set(false);
+      },
+    });
+  }
+
+  saveClockQrLocationVerify(): void {
+    this.api
+      .updateTenantSettings({ clock_qr_location_verify: !!this.formData.clock_qr_location_verify })
+      .subscribe({
+        next: (updated) => {
+          this.settings.set(updated);
+          this.success.set(this.translate.instant('SETTINGS.SAVE_CHANGES'));
+          this.scheduleSuccessDismiss();
+        },
+        error: () => this.error.set('Could not save clock location option.'),
+      });
+  }
+
+  copyClockQrToken(): void {
+    const t = this.clockQrLastToken();
+    if (!t || !navigator.clipboard?.writeText) return;
+    navigator.clipboard.writeText(t).catch(() => {});
+  }
+
+  /** Full app URL encoded in the printable QR (same pattern as SETTINGS.CLOCK_QR_URL_HINT). */
+  private clockInQrPrintPayloadUrl(): string | null {
+    const token = this.clockQrLastToken();
+    if (!token || typeof window === 'undefined') return null;
+    const origin = window.location.origin.replace(/\/$/, '');
+    return `${origin}/my-shift?clock_qr=${encodeURIComponent(token)}`;
+  }
+
+  async downloadClockQrForPrinting(): Promise<void> {
+    const payload = this.clockInQrPrintPayloadUrl();
+    if (!payload || !this.settings()?.clock_qr_active) return;
+    this.clockQrDownloadBusy.set(true);
+    this.error.set(null);
+    try {
+      const QR = await import('qrcode');
+      const dataUrl = await QR.toDataURL(payload, {
+        width: 1200,
+        margin: 2,
+        errorCorrectionLevel: 'M',
+        color: { dark: '#000000', light: '#ffffff' },
+      });
+      const blob = await (await fetch(dataUrl)).blob();
+      const tid = this.settings()?.id;
+      const suffix = tid != null && tid > 0 ? String(tid) : 'tenant';
+      const a = document.createElement('a');
+      const objectUrl = URL.createObjectURL(blob);
+      a.href = objectUrl;
+      a.download = `staff-clock-in-qr-${suffix}.png`;
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      this.error.set(this.translate.instant('SETTINGS.CLOCK_QR_DOWNLOAD_FAILED'));
+    } finally {
+      this.clockQrDownloadBusy.set(false);
+    }
+  }
+}

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="112" viewBox="0 0 96 112">
+  <defs>
+    <linearGradient id="og" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4b0082"/>
+      <stop offset="45%" stop-color="#c026d3"/>
+      <stop offset="100%" stop-color="#a21caf"/>
+    </linearGradient>
+  </defs>
+  <!-- Arco ogee / tipo puerta  contorno para repetir en mosaico -->
+  <path
+    fill="none"
+    stroke="url(#og)"
+    stroke-width="2"
+    stroke-linejoin="round"
+    d="M 18 98 L 18 54 C 18 54 28 28 48 14 C 68 28 78 54 78 54 L 78 98 Z"
+  />
+</svg>

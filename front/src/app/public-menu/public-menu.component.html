@@ -1,0 +1,135 @@
+<div
+  class="book-page public-menu-page"
+  [style.--color-bg]="tenant()?.public_background_color ?? null"
+  [style.--hero-header-bg]="tenant()?.public_background_color ?? null"
+>
+  @if (loading()) {
+    <div class="public-menu-shell">
+      <div class="public-menu-top-bar">
+        <app-language-picker class="book-language-picker"></app-language-picker>
+      </div>
+      <div class="loading-screen">
+        <p>{{ 'PUBLIC_MENU.LOADING' | translate }}</p>
+      </div>
+    </div>
+  } @else if (errorKind()) {
+    <div class="public-menu-shell">
+      <div class="public-menu-top-bar">
+        <app-language-picker class="book-language-picker"></app-language-picker>
+      </div>
+      <main class="book-content">
+        <div class="book-card public-menu-error-card">
+          <h1>{{ 'PUBLIC_MENU.PAGE_TITLE' | translate }}</h1>
+          <p class="form-error">
+            @if (errorKind() === 'invalid_tenant') {
+              {{ 'PUBLIC_MENU.INVALID_TENANT' | translate }}
+            } @else if (errorKind() === 'tenant_not_found') {
+              {{ 'PUBLIC_MENU.TENANT_NOT_FOUND' | translate }}
+            } @else {
+              {{ 'PUBLIC_MENU.LOAD_FAILED' | translate }}
+            }
+          </p>
+          <a routerLink="/" class="public-menu-back-link">{{ 'PUBLIC_MENU.BACK_HOME' | translate }}</a>
+        </div>
+      </main>
+    </div>
+  } @else {
+    <header
+      class="hero-header"
+      [class.has-bg-image]="tenant()?.header_background_filename"
+      [style.background-image]="headerBackgroundStyle()"
+    >
+      <div class="hero-overlay"></div>
+      <app-language-picker class="book-language-picker"></app-language-picker>
+      <div class="hero-content">
+        <div class="hero-top-row">
+          @if (logoUrl()) {
+            <div class="logo-container">
+              <img [src]="getLogoSafeUrl(logoUrl())" [alt]="displayName()" class="tenant-logo" />
+            </div>
+          }
+        </div>
+        <div class="hero-info">
+          <h1 class="restaurant-name">{{ displayName() }}</h1>
+          @if (tenant()?.description?.trim()) {
+            <p class="restaurant-description">{{ tenant()!.description }}</p>
+          }
+        </div>
+      </div>
+    </header>
+
+    <main class="book-content public-menu-content">
+      <p class="public-menu-readonly-hint">{{ 'PUBLIC_MENU.READ_ONLY_HINT' | translate }}</p>
+      <p class="public-menu-delivery-cta">
+        <a [routerLink]="['/delivery', tenantId()]" class="btn btn-primary">
+          {{ 'PUBLIC_MENU.ORDER_DELIVERY' | translate }}
+        </a>
+      </p>
+
+      @if (menuLoading()) {
+        <p class="public-menu-status">{{ 'COMMON.LOADING' | translate }}</p>
+      } @else if (categories().length === 0) {
+        <p class="public-menu-status public-menu-empty">{{ 'PUBLIC_MENU.EMPTY_MENU' | translate }}</p>
+      } @else {
+        @for (cat of categories(); track cat.id) {
+          <section class="public-menu-category" [attr.aria-labelledby]="'cat-' + cat.id">
+            <h2 class="public-menu-category-title" [id]="'cat-' + cat.id">
+              <button
+                type="button"
+                class="public-menu-category-toggle"
+                (click)="toggleCategory(cat.id)"
+                [attr.aria-expanded]="isCategoryExpanded(cat.id)"
+                [attr.aria-controls]="categoryPanelId(cat.id)"
+                [attr.aria-label]="categoryToggleAriaLabel(cat)"
+              >
+                <span class="public-menu-category-name">{{ getCategoryLabel(cat.name) }}</span>
+                <span class="public-menu-category-chevron" aria-hidden="true">{{
+                  isCategoryExpanded(cat.id) ? '▾' : '▸'
+                }}</span>
+              </button>
+            </h2>
+            @if (isCategoryExpanded(cat.id)) {
+              <ul
+                class="public-menu-product-list"
+                [id]="categoryPanelId(cat.id)"
+                role="region"
+                [attr.aria-labelledby]="'cat-' + cat.id"
+              >
+                @for (product of cat.products; track product.id) {
+                  <li class="public-menu-product">
+                    @if (product.image_url) {
+                      <img
+                        class="public-menu-product-image"
+                        [src]="productImageUrl(product.image_url)"
+                        [alt]="product.name"
+                        loading="lazy"
+                        (error)="$any($event.target).style.display = 'none'"
+                      />
+                    }
+                    <div class="public-menu-product-body">
+                      <div class="public-menu-product-header">
+                        <span class="public-menu-product-name">{{ product.name }}</span>
+                        <span class="public-menu-product-price">{{ formatPrice(product) }}</span>
+                      </div>
+                      @if (product.description?.trim()) {
+                        <p class="public-menu-product-desc">{{ product.description }}</p>
+                      }
+                    </div>
+                  </li>
+                }
+              </ul>
+            }
+          </section>
+        }
+      }
+
+      <div class="public-menu-footer-actions">
+        <a routerLink="/" class="public-menu-back-link">{{ 'PUBLIC_MENU.BACK_HOME' | translate }}</a>
+        <app-legal-links
+          [termsUrl]="tenant()?.terms_of_service_url"
+          [privacyUrl]="tenant()?.privacy_policy_url"
+        />
+      </div>
+    </main>
+  }
+</div>

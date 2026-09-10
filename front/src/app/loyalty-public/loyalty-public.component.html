@@ -1,0 +1,138 @@
+<div class="book-page loyalty-public" data-testid="loyalty-public-page">
+  <header class="book-header">
+    <app-language-picker></app-language-picker>
+  </header>
+
+  @if (loading()) {
+    <p class="hint">{{ 'COMMON.LOADING' | translate }}</p>
+  } @else if (errorKind() === 'invalid_tenant') {
+    <p class="error">{{ 'LOYALTY_PUBLIC.INVALID_TENANT' | translate }}</p>
+  } @else if (errorKind() === 'not_enabled') {
+    <p class="error">{{ 'LOYALTY_PUBLIC.NOT_ENABLED' | translate }}</p>
+  } @else if (program(); as p) {
+    <main class="book-main">
+      <h1>{{ p.program_name }}</h1>
+      <p class="lede">
+        {{
+          'LOYALTY_PUBLIC.LEDE'
+            | translate
+              : {
+                  earn: p.earn_units_per_order,
+                  mode: p.mode,
+                  threshold: p.redemption_threshold,
+                }
+        }}
+      </p>
+
+      @if (submitted()) {
+        <div class="success" data-testid="loyalty-join-success">
+          <p>{{ 'LOYALTY_PUBLIC.JOINED' | translate }}</p>
+          <p>
+            {{ 'LOYALTY_PUBLIC.BALANCE' | translate }}: <strong>{{ balance() }}</strong>
+          </p>
+          @if (vipTier()) {
+            <p data-testid="loyalty-join-vip">
+              {{ 'LOYALTY_PUBLIC.VIP_TIER' | translate }}: <strong>{{ vipTier() }}</strong>
+            </p>
+          }
+          @if (ownReferralCode(); as refCode) {
+            <p class="token-hint">{{ 'LOYALTY_PUBLIC.REFERRAL_SHARE' | translate }}</p>
+            <p class="token" data-testid="loyalty-referral-link">
+              <code>{{ origin }}/loyalty/{{ tenantId() }}?ref={{ refCode }}</code>
+            </p>
+          }
+          @if (memberToken()) {
+            <p class="token-hint">{{ 'LOYALTY_PUBLIC.KEEP_LINK' | translate }}</p>
+            <p class="token">
+              <code>{{ origin }}/loyalty/card/{{ memberToken() }}</code>
+            </p>
+          }
+          @if (applePkpassUrl() || googleSaveUrl()) {
+            <div class="wallet-actions" data-testid="loyalty-wallet-actions">
+              @if (applePkpassUrl(); as appleUrl) {
+                <a class="btn primary" [href]="appleUrl" data-testid="loyalty-add-apple-wallet">
+                  {{ 'LOYALTY_PUBLIC.ADD_APPLE_WALLET' | translate }}
+                </a>
+              }
+              @if (googleSaveUrl(); as gUrl) {
+                <a
+                  class="btn primary"
+                  [href]="gUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-testid="loyalty-add-google-wallet"
+                >
+                  {{ 'LOYALTY_PUBLIC.ADD_GOOGLE_WALLET' | translate }}
+                </a>
+              }
+            </div>
+          } @else if (walletNote()) {
+            <p class="hint">{{ walletNote() }}</p>
+          }
+        </div>
+      } @else {
+        <form (ngSubmit)="submit()" class="join-form">
+          <label>
+            <span>{{ 'LOYALTY_PUBLIC.NAME' | translate }}</span>
+            <input type="text" [(ngModel)]="displayName" name="displayName" required />
+          </label>
+          <label>
+            <span>{{ 'LOYALTY_PUBLIC.EMAIL' | translate }}</span>
+            <input type="email" [(ngModel)]="email" name="email" />
+          </label>
+          <label>
+            <span>{{ 'LOYALTY_PUBLIC.PHONE' | translate }}</span>
+            <input type="tel" [(ngModel)]="phone" name="phone" />
+          </label>
+          <div class="birthday-row">
+            <label>
+              <span>{{ 'LOYALTY_PUBLIC.BIRTHDAY_MONTH' | translate }}</span>
+              <input
+                type="number"
+                min="1"
+                max="12"
+                [(ngModel)]="birthdayMonth"
+                name="birthdayMonth"
+                data-testid="loyalty-join-birthday-month"
+              />
+            </label>
+            <label>
+              <span>{{ 'LOYALTY_PUBLIC.BIRTHDAY_DAY' | translate }}</span>
+              <input
+                type="number"
+                min="1"
+                max="31"
+                [(ngModel)]="birthdayDay"
+                name="birthdayDay"
+                data-testid="loyalty-join-birthday-day"
+              />
+            </label>
+          </div>
+          <p class="hint">{{ 'LOYALTY_PUBLIC.BIRTHDAY_HINT' | translate }}</p>
+          <label>
+            <span>{{ 'LOYALTY_PUBLIC.REFERRAL_CODE' | translate }}</span>
+            <input
+              type="text"
+              [(ngModel)]="referralCode"
+              name="referralCode"
+              data-testid="loyalty-join-referral"
+            />
+          </label>
+          <p class="hint">{{ 'LOYALTY_PUBLIC.CONTACT_HINT' | translate }}</p>
+          @if (submitError()) {
+            <p class="error">{{ submitError() }}</p>
+          }
+          <button type="submit" class="btn primary" [disabled]="!canSubmit() || submitting()">
+            {{
+              submitting()
+                ? ('COMMON.SAVING' | translate)
+                : ('LOYALTY_PUBLIC.JOIN' | translate)
+            }}
+          </button>
+        </form>
+      }
+    </main>
+  }
+
+  <app-legal-links></app-legal-links>
+</div>

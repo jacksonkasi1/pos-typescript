@@ -1,0 +1,44 @@
+# Satisfecho public site — https://satisfecho.de
+User-agent: *
+Allow: /
+Allow: /features
+Allow: /register
+Allow: /signup
+Allow: /terms
+Allow: /privacy
+Allow: /orders
+Allow: /book/
+Allow: /public-menu/
+Allow: /delivery/
+Allow: /waitlist/
+Allow: /feedback/
+Allow: /menu/
+Allow: /reservation
+
+# Staff / auth portals — prefer not to index app shells
+Disallow: /login
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /paywall
+Disallow: /dashboard
+Disallow: /my-shift
+Disallow: /products
+Disallow: /catalog
+Disallow: /tables
+Disallow: /staff/
+Disallow: /customers
+Disallow: /kitchen
+Disallow: /bar
+Disallow: /settings
+Disallow: /users
+Disallow: /contracts
+Disallow: /inventory
+Disallow: /reports
+Disallow: /working-plan
+Disallow: /reservations
+Disallow: /guest-feedback
+Disallow: /provider/
+Disallow: /courier/
+Disallow: /platform/
+
+Sitemap: https://satisfecho.de/sitemap.xml

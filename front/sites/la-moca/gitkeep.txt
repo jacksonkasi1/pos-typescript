@@ -1,0 +1,3 @@
+This file keeps the la-moca directory in Git. Populate with a CI artifact or local
+ng build (see scripts/sync-all-marketing-sites.sh). Do not commit downloaded bundle
+files.

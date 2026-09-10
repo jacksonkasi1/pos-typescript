@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Ariba Doner">
+  <rect width="32" height="32" rx="4" fill="#000"/>
+  <g transform="translate(16 16)">
+    <path d="M-9 10 L-6 -9 L-3 -9 L-6 10 Z" fill="#9a5a2e"/>
+    <path d="M-7 8 L-5 -6 L-4 -6 L-6 8 Z" fill="#c47a3a"/>
+    <path d="M-5 6 L-4 -3 L-3 -3 L-4 6 Z" fill="#e74c3c" opacity="0.85"/>
+    <path d="M3 10 L6 -9 L9 -9 L6 10 Z" fill="#6b3a1f"/>
+    <path d="M5 8 L7 -6 L8 -6 L6 8 Z" fill="#8b4a28"/>
+    <path d="M7 6 L8 -3 L9 -3 L8 6 Z" fill="#e74c3c" opacity="0.85"/>
+    <ellipse cx="0" cy="11" rx="10" ry="1.2" fill="#d4af37"/>
+    <text x="0" y="3" text-anchor="middle" font-family="Georgia, serif" font-size="7" font-weight="700" fill="#d4af37">a</text>
+  </g>
+</svg>

@@ -1,0 +1,18 @@
+# Local development overlay. Use with base:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# HAProxy uses haproxy.cfg (no HTTPS, no certs). App on http://localhost:4202
+# Also maps host 127.0.0.1:80 -> HAProxy so http://127.0.0.1/<slug>/ matches prod-style marketing URLs (may fail if port 80 is taken).
+#
+# Marketing local build without token: clone NNN_slug beside pos (e.g. ../083_wimpi); sync-all-marketing-sites.sh auto-discovers siblings.
+services:
+  front:
+    environment:
+      - POS_REPO_ROOT=/repo
+    volumes:
+      - ./scripts:/pos-scripts:ro
+      - .:/repo:rw
+
+  haproxy:
+    ports:
+      - "0.0.0.0:${FRONTEND_PORT:-4202}:4202"
+      - "127.0.0.1:80:4202"

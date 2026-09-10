@@ -1,0 +1,105 @@
+{
+  "autoDiscoverSiblingRepos": true,
+  "excludedSlugs": ["gustazo"],
+  "description": "Marketing SPAs under /<slug>/ from GitHub repos named NNN_slug (three digits + underscore). Entries mirror satisfecho org repos; optional discovery adds any sibling NNN_* with package.json. excludedSlugs are never synced (even if discovered as siblings).",
+  "sites": [
+    {
+      "slug": "antillana",
+      "repo": "satisfecho/010_antillana",
+      "branch": "main",
+      "artifact": "dist"
+    },
+    {
+      "slug": "dilruba",
+      "repo": "satisfecho/020_dilruba",
+      "branch": "main",
+      "artifact": "dist"
+    },
+    {
+      "slug": "flamanapolitana",
+      "repo": "satisfecho/030_flamanapolitana",
+      "branch": "main",
+      "artifact": "dist"
+    },
+    {
+      "slug": "hakone",
+      "repo": "satisfecho/050_hakone",
+      "branch": "main",
+      "artifact": "dist"
+    },
+    {
+      "slug": "labellatoscana",
+      "repo": "satisfecho/060_labellatoscana",
+      "branch": "main",
+      "artifact": "labellatoscana-satisfecho-deploy",
+      "deploySubpath": "es"
+    },
+    {
+      "slug": "la-moca",
+      "repo": "satisfecho/082_la_moca",
+      "branch": "main",
+      "artifact": "la-moca-dist"
+    },
+    {
+      "slug": "wimpi",
+      "repo": "satisfecho/083_wimpi",
+      "branch": "main",
+      "artifact": "wimpi-satisfecho-deploy"
+    },
+    {
+      "slug": "bosskebabypizzeria",
+      "repo": "satisfecho/085_Bosskebabypizzeria",
+      "branch": "main",
+      "artifact": "boss-kebab-satisfecho-deploy"
+    },
+    {
+      "slug": "rico-kebab",
+      "repo": "satisfecho/088_ricokebab",
+      "branch": "main",
+      "artifact": "rico-kebab-satisfecho-deploy",
+      "deploySubpath": "es"
+    },
+    {
+      "slug": "pizzaluna",
+      "repo": "satisfecho/087_pizzalluna",
+      "branch": "main",
+      "artifact": "pizzaluna-satisfecho-deploy",
+      "deploySubpath": "es"
+    },
+    {
+      "slug": "pita-house",
+      "repo": "satisfecho/086_pitahouse",
+      "branch": "main",
+      "artifact": "pita-house-satisfecho-deploy",
+      "deploySubpath": "es"
+    },
+    {
+      "slug": "amigo-kebab",
+      "repo": "satisfecho/089_amigokebab",
+      "branch": "main",
+      "artifact": "amigo-kebab-satisfecho-deploy",
+      "deploySubpath": "es"
+    },
+    {
+      "slug": "ariba-doner",
+      "repo": "satisfecho/090_aribakebab",
+      "branch": "main",
+      "artifact": "ariba-doner-satisfecho-deploy",
+      "deploySubpath": "es"
+    },
+    {
+      "slug": "french-kebab",
+      "repo": "satisfecho/091_frenchkebab",
+      "branch": "main",
+      "artifact": "french-kebab-satisfecho-deploy",
+      "deploySubpath": "es"
+    },
+    {
+      "slug": "kebab-express",
+      "repo": "satisfecho/092_kebabexpress",
+      "branch": "main",
+      "artifact": "kebab-express-satisfecho-deploy",
+      "deploySubpath": "es"
+    }
+  ]
+}

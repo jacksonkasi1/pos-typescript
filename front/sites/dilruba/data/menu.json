@@ -1,0 +1,1005 @@
+{
+  "notice": "Todos nuestros platos están elaborados con mantequilla clarificada. · All our dishes are made with clarified butter.",
+  "vatNote": "Todos los precios incluyen el IVA.",
+  "categories": [
+    {
+      "id": "entrantes",
+      "title": "Entrantes · Appetizers",
+      "subtitle": "Para empezar el banquete.",
+      "items": [
+        {
+          "n": 1,
+          "name": "Samosas",
+          "nameEn": "Samosas",
+          "image": "/menu/samosas.jpg",
+          "price": "5 €",
+          "tags": [
+            "vegetariano",
+            "recomendado"
+          ],
+          "description": "Empanadilla crujiente rellena de verduras especiadas.",
+          "descriptionEn": "Crispy pastry filled with spiced vegetables."
+        },
+        {
+          "n": 2,
+          "name": "Paneer Pakora",
+          "nameEn": "Paneer Pakora",
+          "image": "/menu/pakora.jpg",
+          "price": "7 €",
+          "tags": [
+            "vegetariano"
+          ],
+          "description": "Queso paneer rebozado en harina de garbanzo, servido con salsa de menta en el interior.",
+          "descriptionEn": "Paneer cheese cubes coated in chickpea flour, served with mint sauce inside."
+        },
+        {
+          "n": 3,
+          "name": "Mix Pakora",
+          "nameEn": "Mix Pakora",
+          "image": "/menu/pakora.jpg",
+          "price": "6 €",
+          "tags": [
+            "vegetariano"
+          ],
+          "description": "Surtido de pakoras de verduras, según disponibilidad.",
+          "descriptionEn": "Assorted vegetable fritters, subject to availability."
+        },
+        {
+          "n": 4,
+          "name": "Dahi Puri o Pani Puri",
+          "nameEn": "Dahi Puri or Pani Puri",
+          "price": "6 €",
+          "tags": [
+            "vegetariano"
+          ],
+          "description": "Conchas de trigo inflado rellenas de garbanzos, yogur y chutneys / con agua especiada y puris crujientes.",
+          "descriptionEn": "Puff wheat shells filled with chickpeas, yogurt and chutneys / with spicy water and crispy puris.",
+          "image": "/menu/chaat.jpg"
+        },
+        {
+          "n": 5,
+          "name": "Fish Pakora",
+          "nameEn": "Fish Pakora",
+          "price": "9 €",
+          "tags": [
+            "pescado",
+            "picante"
+          ],
+          "description": "Trozos de pescado marinados y fritos en una masa especiada.",
+          "descriptionEn": "Marinated fish pieces fried in a spiced batter.",
+          "image": "/menu/fish.jpg"
+        },
+        {
+          "n": 6,
+          "name": "Aloo Tikki",
+          "nameEn": "Aloo Tikki",
+          "price": "6 €",
+          "tags": [
+            "vegetariano"
+          ],
+          "description": "Dos croquetas de patata servidas con salsa de yogur, chutneys y frutas.",
+          "descriptionEn": "Two potato patties served with yogurt sauce, chutneys, and fruits.",
+          "image": "/menu/potatoes.jpg"
+        },
+        {
+          "n": 7,
+          "name": "Chicken Pakora",
+          "nameEn": "Chicken Pakora",
+          "price": "8 €",
+          "description": "Pollo marinado y frito en harina de garbanzo.",
+          "descriptionEn": "Marinated chicken fried in chickpea flour.",
+          "image": "/menu/pakora.jpg"
+        },
+        {
+          "n": 8,
+          "name": "Patatas Bravas",
+          "nameEn": "Patatas Bravas",
+          "price": "6 €",
+          "tags": [
+            "picante"
+          ],
+          "description": "Dados de patata frita servidos con salsa picante.",
+          "descriptionEn": "Fried potato cubes served with spicy sauce.",
+          "image": "/menu/potatoes.jpg"
+        }
+      ]
+    },
+    {
+      "id": "tandoori-tapas",
+      "title": "Tandoori tapas",
+      "subtitle": "Platos cocinados en horno tandoor tradicional. · Dishes cooked in a traditional tandoor oven.",
+      "items": [
+        {
+          "n": 9,
+          "name": "Chicken Tikka",
+          "nameEn": "Chicken Tikka",
+          "price": "8 €",
+          "tags": [
+            "recomendado"
+          ],
+          "description": "Pollo marinado y asado con especias. (varias marinadas posibles)",
+          "descriptionEn": "Spiced marinated chicken grilled. (varias marinadas posibles)",
+          "image": "/menu/tandoori.jpg"
+        },
+        {
+          "n": 10,
+          "name": "Paneer Tikka",
+          "nameEn": "Paneer Tikka",
+          "price": "8 €",
+          "tags": [
+            "vegetariano",
+            "recomendado"
+          ],
+          "description": "Queso indio asado con especias. (varias marinadas posibles)",
+          "descriptionEn": "Marinated Indian cheese cubes. (varias marinadas posibles)",
+          "image": "/menu/tandoori.jpg"
+        },
+        {
+          "n": 11,
+          "name": "Chicken Tandoori",
+          "nameEn": "Chicken Tandoori",
+          "price": "10 €",
+          "description": "Muslos de pollo marinados en especias y asados.",
+          "descriptionEn": "Chicken legs marinated in spices and grilled.",
+          "image": "/menu/tandoori.jpg"
+        },
+        {
+          "n": 12,
+          "name": "Sheekh Kebab",
+          "nameEn": "Sheekh Kebab",
+          "price": "12 €",
+          "tags": [
+            "picante"
+          ],
+          "description": "Brocheta de pollo picado mezclada con hierbas y especias.",
+          "descriptionEn": "Skewer of chicken mixed with herbs and spices.",
+          "image": "/menu/tandoori.jpg"
+        },
+        {
+          "n": 13,
+          "name": "Mix Grill",
+          "nameEn": "Mix Grill",
+          "price": "20 €",
+          "description": "Surtido de carnes y queso paneer marinados y asados.",
+          "descriptionEn": "Assortment of marinated meats and paneer, grilled.",
+          "image": "/menu/tandoori.jpg"
+        },
+        {
+          "n": 14,
+          "name": "Lamb Tandoori",
+          "nameEn": "Lamb Tandoori",
+          "price": "14 €",
+          "tags": [
+            "picante-mucho"
+          ],
+          "description": "Cordero marinado con especias y asado.",
+          "descriptionEn": "Spiced marinated lamb, grilled.",
+          "image": "/menu/tandoori.jpg"
+        },
+        {
+          "n": 15,
+          "name": "Fish Tikka",
+          "nameEn": "Fish Tikka",
+          "price": "12 €",
+          "tags": [
+            "pescado",
+            "picante"
+          ],
+          "description": "Pescado marinado con especias y asado.",
+          "descriptionEn": "Spiced marinated fish, grilled.",
+          "image": "/menu/fish.jpg"
+        },
+        {
+          "n": 16,
+          "name": "Gambas Tandoori",
+          "nameEn": "Tandoori prawns",
+          "price": "15 €",
+          "tags": [
+            "gambas"
+          ],
+          "description": "Gambas marinadas con especias y asadas.",
+          "descriptionEn": "Prawns marinated with spices and grilled.",
+          "image": "/menu/prawns.jpg"
+        },
+        {
+          "n": 17,
+          "name": "Hariyali Tikka",
+          "nameEn": "Hariyali Tikka",
+          "price": "8 €",
+          "description": "Pollo marinado con yogur, menta y cilantro.",
+          "descriptionEn": "Chicken marinated with yogurt, mint & coriander.",
+          "image": "/menu/tandoori.jpg"
+        },
+        {
+          "n": 18,
+          "name": "Chicken Malai Tikka",
+          "nameEn": "Chicken Malai Tikka",
+          "price": "10 €",
+          "description": "Pollo marinado con nata y especias suaves.",
+          "descriptionEn": "Chicken marinated in cream and mild spices.",
+          "image": "/menu/tandoori.jpg"
+        }
+      ]
+    },
+    {
+      "id": "pollo",
+      "title": "Platos de pollo · Chicken dishes",
+      "subtitle": "Plato principal · Main dish.",
+      "items": [
+        {
+          "n": 19,
+          "name": "Butter Chicken",
+          "nameEn": "Butter Chicken",
+          "price": "9,50 €",
+          "tags": [
+            "frutos-secos",
+            "recomendado"
+          ],
+          "description": "Pollo tierno en salsa cremosa de tomate y mantequilla.",
+          "descriptionEn": "Tender chicken in a creamy tomato and butter sauce.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 20,
+          "name": "Chicken Tikka Masala",
+          "nameEn": "Chicken Tikka Masala",
+          "price": "9,50 €",
+          "description": "Pollo tikka en salsa de tomate especiada y cremosa.",
+          "descriptionEn": "Tikka chicken in a spiced, creamy tomato sauce.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 21,
+          "name": "Chicken Vindaloo",
+          "nameEn": "Chicken Vindaloo",
+          "price": "10 €",
+          "tags": [
+            "picante-mucho"
+          ],
+          "description": "Pollo en salsa intensa, un toque picante.",
+          "descriptionEn": "Chicken in a tangy, spicy sauce.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 22,
+          "name": "Chicken Curry",
+          "nameEn": "Chicken Curry",
+          "price": "9,50 €",
+          "tags": [
+            "picante"
+          ],
+          "description": "Pollo cocinado en salsa tradicional con tomate y cebolla.",
+          "descriptionEn": "Chicken cooked in a traditional tomato and onion curry sauce.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 23,
+          "name": "Chicken Madras",
+          "nameEn": "Chicken Madras",
+          "price": "12 €",
+          "tags": [
+            "picante"
+          ],
+          "description": "Pollo en curry rojo especiado al estilo sur de India.",
+          "descriptionEn": "Chicken in a fiery South Indian style curry.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 24,
+          "name": "Chicken Karahi",
+          "nameEn": "Chicken Karahi",
+          "price": "13 €",
+          "tags": [
+            "picante-mucho"
+          ],
+          "description": "Pollo cocinado al wok con tomate, pimientos y especias.",
+          "descriptionEn": "Chicken stir-cooked in a wok with tomatoes, peppers, and spices.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 25,
+          "name": "Chicken Pondicherry",
+          "nameEn": "Chicken Pondicherry",
+          "price": "12 €",
+          "tags": [
+            "frutos-secos"
+          ],
+          "description": "Pollo cocido a fuego lento en una salsa cremosa de coco, especias suaves y tomate.",
+          "descriptionEn": "Chicken slow-cooked in a creamy coconut, mild spice, and tomato sauce.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 26,
+          "name": "Chicken Korma",
+          "nameEn": "Chicken Korma",
+          "price": "9,50 €",
+          "tags": [
+            "frutos-secos"
+          ],
+          "description": "Pollo tierno en una salsa suave de crema, nueces y especias.",
+          "descriptionEn": "Tender chicken in a mild creamy sauce with nuts and spices.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 27,
+          "name": "Chicken Mango",
+          "nameEn": "Chicken Mango",
+          "price": "12 €",
+          "description": "Pollo cocinado en una salsa cremosa y ligeramente dulce de mango, coco y anís.",
+          "descriptionEn": "Chicken cooked in a creamy, slightly sweet mango sauce with coco and anise.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 28,
+          "name": "Chicken Bhuna",
+          "nameEn": "Chicken Bhuna",
+          "price": "12 €",
+          "tags": [
+            "picante"
+          ],
+          "description": "Pollo cocinado en una salsa de cebolla especiada y concentrada.",
+          "descriptionEn": "Chicken cooked in a spiced, reduced onion sauce.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 29,
+          "name": "Palak Chicken",
+          "nameEn": "Palak Chicken",
+          "price": "12 €",
+          "description": "Pollo cocinado con espinacas y especias.",
+          "descriptionEn": "Chicken cooked with spinach and Indian spices.",
+          "image": "/menu/curry.jpg"
+        }
+      ]
+    },
+    {
+      "id": "cordero",
+      "title": "Platos de cordero · Lamb dishes",
+      "items": [
+        {
+          "n": 30,
+          "name": "Lamb Chops",
+          "nameEn": "Lamb Chops",
+          "price": "17 €",
+          "tags": [
+            "picante",
+            "recomendado"
+          ],
+          "description": "Chuletas de cordero marinadas con especias, asadas al tandoor y acompañadas de salsa.",
+          "descriptionEn": "Lamb chops marinated with spices and grilled in the tandoor and served with sauce.",
+          "image": "/menu/lamb.jpg"
+        },
+        {
+          "n": 31,
+          "name": "Lamb Curry",
+          "nameEn": "Lamb Curry",
+          "price": "12 €",
+          "tags": [
+            "picante"
+          ],
+          "description": "Cordero cocinado en salsa tradicional con tomate y cebolla.",
+          "descriptionEn": "Lamb cooked in a traditional tomato and onion curry sauce.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 32,
+          "name": "Lamb Madras",
+          "nameEn": "Lamb Madras",
+          "price": "13 €",
+          "tags": [
+            "picante"
+          ],
+          "description": "Cordero tikka cocinado en salsa de tomate especiada y cremosa.",
+          "descriptionEn": "Lamb tikka cooked in a spiced, creamy tomato sauce.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 33,
+          "name": "Lamb Bhuna",
+          "nameEn": "Lamb Bhuna",
+          "price": "13 €",
+          "tags": [
+            "picante"
+          ],
+          "description": "Cordero cocinado en salsa de cebolla especiada y concentrada.",
+          "descriptionEn": "Lamb cooked in a spiced, reduced onion sauce.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 34,
+          "name": "Lamb Karahi",
+          "nameEn": "Lamb Karahi",
+          "price": "14 €",
+          "tags": [
+            "picante-mucho"
+          ],
+          "description": "Cordero cocinado al wok con tomate, pimientos y especias.",
+          "descriptionEn": "Lamb stir-cooked in a wok with tomatoes, peppers, and spices.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 35,
+          "name": "Lamb Pondicherry",
+          "nameEn": "Lamb Pondicherry",
+          "price": "15 €",
+          "tags": [
+            "frutos-secos",
+            "picante"
+          ],
+          "description": "Cordero cocido a fuego lento en una salsa cremosa de coco, especias suaves y tomate.",
+          "descriptionEn": "Lamb slow-cooked in a creamy coconut, mild spice, and tomato sauce.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 36,
+          "name": "Lamb Korma",
+          "nameEn": "Lamb Korma",
+          "price": "13 €",
+          "tags": [
+            "frutos-secos"
+          ],
+          "description": "Cordero en una salsa suave de crema, nueces y especias.",
+          "descriptionEn": "Lamb in a mild creamy sauce with nuts and spices.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 37,
+          "name": "Lamb Tikka Masala",
+          "nameEn": "Lamb Tikka Masala",
+          "price": "13 €",
+          "tags": [
+            "picante"
+          ],
+          "description": "Cordero tikka en salsa de tomate especiada y cremosa.",
+          "descriptionEn": "Lamb tikka in a spiced, creamy tomato sauce.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 38,
+          "name": "Lamb Vindaloo",
+          "nameEn": "Lamb Vindaloo",
+          "price": "13 €",
+          "tags": [
+            "picante-mucho"
+          ],
+          "description": "Cordero en salsa intensa, un toque picante.",
+          "descriptionEn": "Lamb in a tangy, spicy sauce.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 39,
+          "name": "Lamb Mango",
+          "nameEn": "Lamb Mango",
+          "price": "13 €",
+          "description": "Cordero cocinado en una salsa cremosa y ligeramente dulce de mango, coco y anís.",
+          "descriptionEn": "Lamb cooked in a creamy, slightly sweet mango sauce with coco and anise.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 40,
+          "name": "Palak Lamb",
+          "nameEn": "Palak Lamb",
+          "price": "13 €",
+          "description": "Cordero cocinado con espinacas y especias.",
+          "descriptionEn": "Lamb cooked with spinach and Indian spices.",
+          "image": "/menu/curry.jpg"
+        }
+      ]
+    },
+    {
+      "id": "vegetarianos",
+      "title": "Platos vegetarianos · Veg dishes",
+      "items": [
+        {
+          "n": 41,
+          "name": "Shahi Paneer",
+          "nameEn": "Shahi Paneer",
+          "price": "9,50 €",
+          "tags": [
+            "vegetariano"
+          ],
+          "description": "Queso paneer en salsa cremosa de anacardos y tomate.",
+          "descriptionEn": "Paneer cheese in a creamy cashew and tomato sauce.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 42,
+          "name": "Palak Paneer",
+          "nameEn": "Palak Paneer",
+          "price": "9,50 €",
+          "tags": [
+            "vegetariano"
+          ],
+          "description": "Queso paneer cocinado en salsa de espinacas.",
+          "descriptionEn": "Paneer cheese cooked in spinach sauce.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 43,
+          "name": "Paneer Butter Masala",
+          "nameEn": "Paneer Butter Masala",
+          "price": "10 €",
+          "tags": [
+            "vegetariano"
+          ],
+          "description": "Queso paneer en salsa de tomate y mantequilla.",
+          "descriptionEn": "Paneer cheese in tomato butter sauce.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 44,
+          "name": "Mattar Paneer",
+          "nameEn": "Mattar Paneer",
+          "price": "9,50 €",
+          "tags": [
+            "vegetariano"
+          ],
+          "description": "Queso paneer y guisantes en salsa.",
+          "descriptionEn": "Paneer cheese and peas in sauce.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 46,
+          "name": "Karahi Paneer",
+          "nameEn": "Karahi Paneer",
+          "price": "10 €",
+          "tags": [
+            "vegetariano",
+            "picante"
+          ],
+          "description": "Queso paneer salteado con pimientos, cebolla y especias.",
+          "descriptionEn": "Paneer cheese stir-fried with peppers, onions, and spices.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 47,
+          "name": "Mix Veg Curry",
+          "nameEn": "Mix Veg Curry",
+          "price": "9 €",
+          "tags": [
+            "vegetariano"
+          ],
+          "description": "Verduras variadas con especias.",
+          "descriptionEn": "Mixed vegetables with spices.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 48,
+          "name": "Dal Makhani",
+          "nameEn": "Dal Makhani",
+          "price": "9,50 €",
+          "tags": [
+            "vegetariano",
+            "recomendado"
+          ],
+          "description": "Lentejas negras cocidas lentamente con mantequilla y nata.",
+          "descriptionEn": "Slow-cooked black lentils with butter and cream.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 49,
+          "name": "Daal Tarka",
+          "nameEn": "Daal Tarka",
+          "price": "9,50 €",
+          "tags": [
+            "vegetariano"
+          ],
+          "description": "Lentejas amarillas cocinadas con ajo, comino y especias.",
+          "descriptionEn": "Yellow lentils cooked with garlic, cumin, and spices.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 50,
+          "name": "Chana Aloo Masala",
+          "nameEn": "Chana Aloo Masala",
+          "price": "9,50 €",
+          "tags": [
+            "vegetariano"
+          ],
+          "description": "Garbanzos y patatas en salsa especiada.",
+          "descriptionEn": "Chickpeas and potatoes in a spiced curry sauce.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 51,
+          "name": "Mushroom Karahi",
+          "nameEn": "Mushroom Karahi",
+          "price": "10 €",
+          "tags": [
+            "vegetariano",
+            "picante"
+          ],
+          "description": "Champiñones salteados con pimientos, cebolla y especias.",
+          "descriptionEn": "Mushrooms stir-fried with peppers, onions, and spices.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 52,
+          "name": "Aloo Gobi",
+          "nameEn": "Aloo Gobi",
+          "price": "9,50 €",
+          "tags": [
+            "vegetariano"
+          ],
+          "description": "Patatas y coliflor con especias.",
+          "descriptionEn": "Potatoes and cauliflower with spices.",
+          "image": "/menu/curry.jpg"
+        }
+      ]
+    },
+    {
+      "id": "marisco-arroz",
+      "title": "Marisco, arroz y pan · Fish, rice & bread",
+      "items": [
+        {
+          "n": 53,
+          "name": "Gambas Curry",
+          "nameEn": "Prawn curry",
+          "price": "13 €",
+          "tags": [
+            "gambas"
+          ],
+          "description": "Gambas cocinadas en salsa tradicional de tomate y cebolla.",
+          "descriptionEn": "Prawns cooked in a traditional tomato and onion sauce.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 54,
+          "name": "Butter Gambas",
+          "nameEn": "Butter prawns",
+          "price": "13 €",
+          "tags": [
+            "gambas"
+          ],
+          "description": "Gambas cocinadas en salsa de tomate y mantequilla.",
+          "descriptionEn": "Prawns cooked in a tomato and butter sauce.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 55,
+          "name": "Gambas Masala",
+          "nameEn": "Prawn masala",
+          "price": "13 €",
+          "tags": [
+            "gambas",
+            "picante-mucho"
+          ],
+          "description": "Gambas cocinadas en salsa especiada con tomate.",
+          "descriptionEn": "Prawns cooked in a spiced sauce with tomato.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 56,
+          "name": "Gambas Korma",
+          "nameEn": "Prawn korma",
+          "price": "13 €",
+          "tags": [
+            "gambas",
+            "frutos-secos"
+          ],
+          "description": "Gambas en salsa suave con nueces y especias.",
+          "descriptionEn": "Prawns in a mild creamy sauce with nuts and spices.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 57,
+          "name": "Gamba Mango",
+          "nameEn": "Prawn mango",
+          "price": "13 €",
+          "tags": [
+            "gambas"
+          ],
+          "description": "Gambas cocinadas en salsa cremosa y ligeramente dulce de mango.",
+          "descriptionEn": "Prawns cooked in a creamy, slightly sweet mango sauce.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 58,
+          "name": "Gambas Karahi",
+          "nameEn": "Prawn karahi",
+          "price": "14 €",
+          "tags": [
+            "gambas",
+            "picante"
+          ],
+          "description": "Gambas cocinadas al wok con tomate, pimientos y especias.",
+          "descriptionEn": "Prawns stir-cooked in a wok with tomatoes, peppers, and spices.",
+          "image": "/menu/curry.jpg"
+        },
+        {
+          "n": 59,
+          "name": "Chicken Biryani",
+          "nameEn": "Chicken Biryani",
+          "price": "11 €",
+          "description": "Arroz basmati especiado con pollo marinado.",
+          "descriptionEn": "Fragrant spiced rice with marinated chicken.",
+          "image": "/menu/rice.jpg"
+        },
+        {
+          "n": 60,
+          "name": "Gambas Biryani",
+          "nameEn": "Prawn biryani",
+          "price": "15 €",
+          "tags": [
+            "gambas"
+          ],
+          "description": "Arroz basmati especiado con gambas marinadas.",
+          "descriptionEn": "Fragrant spiced rice with marinated prawns.",
+          "image": "/menu/rice.jpg"
+        },
+        {
+          "n": 61,
+          "name": "Veg Arroz Pulao · Pulao rice",
+          "nameEn": "Vegetable pulao",
+          "price": "5,50 €",
+          "tags": [
+            "vegetariano"
+          ],
+          "description": "Arroz basmati con verduras y especias suaves.",
+          "descriptionEn": "Basmati rice with vegetables and mild spices.",
+          "image": "/menu/rice.jpg"
+        },
+        {
+          "n": 62,
+          "name": "Lamb Biryani",
+          "nameEn": "Lamb Biryani",
+          "price": "14 €",
+          "description": "Arroz basmati especiado con cordero marinado.",
+          "descriptionEn": "Fragrant spiced rice with marinated lamb.",
+          "image": "/menu/rice.jpg"
+        },
+        {
+          "n": 63,
+          "name": "Veg Biryani",
+          "nameEn": "Veg Biryani",
+          "price": "10 €",
+          "tags": [
+            "vegetariano"
+          ],
+          "description": "Arroz basmati especiado cocinado con verduras.",
+          "descriptionEn": "Fragrant spiced rice cooked with vegetables.",
+          "image": "/menu/rice.jpg"
+        },
+        {
+          "n": 64,
+          "name": "Jeera Rice · Arroz comino · Cumin rice",
+          "nameEn": "Cumin rice",
+          "price": "5,50 €",
+          "description": "Arroz basmati con comino tostado.",
+          "descriptionEn": "Basmati rice with toasted cumin.",
+          "image": "/menu/rice.jpg"
+        },
+        {
+          "n": 65,
+          "name": "Basmati Rice",
+          "nameEn": "Basmati rice",
+          "price": "4,50 €",
+          "description": "Arroz largo basmati blanco.",
+          "descriptionEn": "Plain steamed basmati rice.",
+          "image": "/menu/rice.jpg"
+        },
+        {
+          "name": "Pan Naan · Plain Naan",
+          "nameEn": "Plain Naan",
+          "price": "2 €",
+          "description": "Pan plano horneado en tandoor.",
+          "descriptionEn": "Flatbread baked in the tandoor.",
+          "image": "/menu/bread.jpg"
+        },
+        {
+          "name": "Naan con ajo · Garlic Naan",
+          "nameEn": "Garlic Naan",
+          "price": "2,50 €",
+          "description": "Naan con ajo y cilantro.",
+          "descriptionEn": "Naan with garlic and coriander.",
+          "image": "/menu/bread.jpg"
+        },
+        {
+          "name": "Naan con queso · Cheese Naan",
+          "nameEn": "Cheese Naan",
+          "price": "3 €",
+          "description": "Naan relleno de queso.",
+          "descriptionEn": "Naan stuffed with cheese.",
+          "image": "/menu/bread.jpg"
+        },
+        {
+          "name": "Naan con patatas · Potatoes Naan",
+          "nameEn": "Potato Naan",
+          "price": "3 €",
+          "description": "Naan con relleno de patata especiada.",
+          "descriptionEn": "Naan with spiced potato filling.",
+          "image": "/menu/bread.jpg"
+        },
+        {
+          "name": "Lacha Paratha",
+          "nameEn": "Lacha Paratha",
+          "price": "3 €",
+          "description": "Pan indio en capas, crujiente.",
+          "descriptionEn": "Flaky layered Indian bread.",
+          "image": "/menu/bread.jpg"
+        },
+        {
+          "name": "Naan con mantequilla · Butter Naan",
+          "nameEn": "Butter Naan",
+          "price": "3 €",
+          "description": "Naan untado con mantequilla clarificada.",
+          "descriptionEn": "Naan brushed with clarified butter.",
+          "image": "/menu/bread.jpg"
+        },
+        {
+          "name": "Tandoori Roti",
+          "nameEn": "Tandoori Roti",
+          "price": "1,50 €",
+          "description": "Pan integral fino horneado en tandoor.",
+          "descriptionEn": "Wholemeal flatbread from the tandoor.",
+          "image": "/menu/bread.jpg"
+        }
+      ]
+    },
+    {
+      "id": "postres",
+      "title": "Postres · Desserts",
+      "items": [
+        {
+          "name": "Gulab Jamun",
+          "nameEn": "Gulab Jamun",
+          "price": "5 €",
+          "description": "Bolitas dulces fritas bañadas en almíbar.",
+          "descriptionEn": "Fried sweet balls soaked in syrup.",
+          "image": "/menu/dessert.jpg"
+        },
+        {
+          "name": "Rasgulla",
+          "nameEn": "Rasgulla",
+          "price": "5 €",
+          "description": "Bolitas dulces esponjosas en almíbar ligero.",
+          "descriptionEn": "Soft balls soaked in light syrup.",
+          "image": "/menu/dessert.jpg"
+        },
+        {
+          "name": "Rasmalai",
+          "nameEn": "Rasmalai",
+          "price": "7 €",
+          "description": "Bolitas suaves de leche en crema con azafrán y cardamomo.",
+          "descriptionEn": "Soft milk dumplings in a saffron and cardamom-flavored cream.",
+          "image": "/menu/dessert.jpg"
+        },
+        {
+          "name": "Kulfi",
+          "nameEn": "Kulfi",
+          "price": "7 €",
+          "description": "Helado indio tradicional con leche condensada y especias.",
+          "descriptionEn": "Traditional Indian ice cream with milk and spices.",
+          "image": "/menu/dessert.jpg"
+        },
+        {
+          "name": "Postre del momento",
+          "nameEn": "Dessert of the moment",
+          "price": "7 €",
+          "description": "Sugerencia dulce según disponibilidad (preguntad en sala).",
+          "descriptionEn": "Sweet suggestion of the day — ask your server.",
+          "image": "/menu/dessert.jpg"
+        }
+      ]
+    },
+    {
+      "id": "bebidas-agua-refresco",
+      "title": "Agua y refrescos · Water & soft drinks",
+      "items": [
+        {
+          "name": "Agua · Water",
+          "price": "2 €"
+        },
+        {
+          "name": "Agua grande · Large water",
+          "price": "3,50 €"
+        },
+        {
+          "name": "Agua con gas · Sparkling water",
+          "price": "2,50 €"
+        },
+        {
+          "name": "Agua con gas grande · Large sparkling water",
+          "price": "3,50 €"
+        },
+        {
+          "name": "Refrescos · Soft drinks",
+          "price": "3,50 €",
+          "description": "Coca-Cola, Fanta…"
+        },
+        {
+          "name": "Refrescos grande · Large soft drinks",
+          "price": "5 €"
+        }
+      ]
+    },
+    {
+      "id": "bebidas-lassi",
+      "title": "Lassi y zumos · Lassi & juices",
+      "items": [
+        {
+          "name": "Lassi Mango",
+          "price": "4,50 €"
+        },
+        {
+          "name": "Lassi Rose",
+          "price": "4,50 €"
+        },
+        {
+          "name": "Lassi Natural",
+          "price": "3 €"
+        },
+        {
+          "name": "Zumo natural · Fresh juice",
+          "price": "5,50 €"
+        }
+      ]
+    },
+    {
+      "id": "bebidas-coctel-cerveza",
+      "title": "Cócteles y cervezas · Cocktails & beers",
+      "items": [
+        {
+          "name": "Cócteles especiales · Signature cocktails",
+          "description": "Ver la carta de cócteles en sala.",
+          "descriptionEn": "See the cocktail menu."
+        },
+        {
+          "name": "Heineken",
+          "price": "3 €"
+        },
+        {
+          "name": "Lemon de Verano",
+          "price": "4 €"
+        },
+        {
+          "name": "Desperados",
+          "price": "4,50 €"
+        },
+        {
+          "name": "Ladrón de Verano",
+          "price": "4 €"
+        },
+        {
+          "name": "18/70 La Rubia",
+          "price": "4,50 €"
+        },
+        {
+          "name": "El Águila",
+          "price": "4,50 €"
+        },
+        {
+          "name": "Amstel",
+          "price": "2,50 €"
+        },
+        {
+          "name": "Amstel Radler",
+          "price": "2,50 €"
+        },
+        {
+          "name": "Cervezas indias · Indian beers",
+          "price": "5 €",
+          "description": "Selección India Beer / estilo indio."
+        }
+      ]
+    },
+    {
+      "id": "bebidas-calientes",
+      "title": "Bebidas calientes · Hot drinks",
+      "items": [
+        {
+          "name": "Té indio · Chai",
+          "price": "2,50 €"
+        },
+        {
+          "name": "Café · Coffee",
+          "price": "2,50 €"
+        },
+        {
+          "name": "Té o infusión · Tea infusion",
+          "price": "2 €"
+        }
+      ]
+    }
+  ]
+}

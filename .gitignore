@@ -1,0 +1,79 @@
+claude-session.log
+tmp/*
+# Local diagnostics archives (do not commit)
+diagnostics_*.zip
+time-of-last-review.txt
+# Agent loop preflight if AGENT_LOOP_TMP points here; optional scratch under agents/ (default: $TMPDIR/pos-agent-loop)
+agents/.pos-agent-loop/
+agents/tmp/
+agents2/001-gh-reviewer/time-of-last-review.txt
+agents2/008-enhancement-reviewer/time-of-last-review.txt
+agents2/008-enhancement-reviewer/time-of-last-review.archive.txt
+.tmp/
+.DS_Store
+*.swp
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Virtual environments (keep venv out of git)
+back/venv/
+back/.venv/
+.venv/
+venv/
+
+# Local config (copy from config.env.example)
+config.env
+# Demo/local credentials (do not commit)
+.env
+
+# Uploads directory (user-uploaded files)
+back/uploads/
+
+# Pre-deploy database backups (created on server by deploy script)
+backups/
+
+# Certbot webroot and HAProxy combined PEM (host-specific; certbot/README.md is tracked)
+certbot/www/
+certbot/haproxy-certs/*.pem
+certbot/haproxy-certs/*.crt
+certbot/haproxy-certs/*.key
+# HAProxy base compose self-signed dev cert (generate locally; see haproxy/certs/README.md)
+haproxy/certs/*.pem
+haproxy/certs/*.crt
+haproxy/certs/*.key
+# Legacy path if used
+certs/*.pem
+certs/*.crt
+certs/*.key
+
+# Revolut sandbox certificates and private key (never commit)
+revolut-certs/
+
+# Generated for ng serve (scripts/flatten-marketing-for-angular.sh)
+front/marketing-flat/
+
+# Node / Angular (front has its own .gitignore too, this is just extra safety)
+node_modules/
+dist/
+.angular/cache/
+
+# Long-running go-ahead-loop.sh log + pid (see scripts/go-ahead-loop.sh)
+.go-ahead-loop.log
+.go-ahead-loop.pid
+
+# IDEs
+.idea/
+.cursor/
+.factory/
+
+
+# Local secrets (GitHub tokens, GA measurement ID, etc. — never commit)
+.secrets
+# Keep .secrets.example committed as the template

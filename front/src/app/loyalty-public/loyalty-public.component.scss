@@ -1,0 +1,42 @@
+.loyalty-public {
+  .lede {
+    max-width: 36rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .join-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-width: 24rem;
+  }
+
+  .join-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .success {
+    max-width: 36rem;
+  }
+
+  .token {
+    word-break: break-all;
+  }
+
+  .error {
+    color: #b00020;
+  }
+
+  .hint {
+    color: var(--text-muted, #666);
+  }
+
+  .wallet-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+}

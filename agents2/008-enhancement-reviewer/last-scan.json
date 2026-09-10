@@ -1,0 +1,203 @@
+{
+  "feat_created": 0,
+  "findings": [
+    "2026-07-25T10:06:05Z: docs_stale\u00d714 + changelog_sparse owned (Unreleased empty post-2.1.32 cut); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); post-#306 NEWs (2103/2112) already queued; unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T10:13:34Z: docs_stale\u00d714 + changelog_sparse owned (Unreleased empty post-2.1.32 cut); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); post-#306 NEWs (2103/2112) already queued; unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T10:20:42Z: docs_stale\u00d714 + changelog_sparse owned (Unreleased empty post-2.1.32 cut); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); post-#306 NEWs (2103/2112) already queued; unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T10:27:49Z: docs_stale\u00d714 + changelog_sparse owned (Unreleased empty post-2.1.32 cut); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); post-#306 NEWs (2103/2112) already queued; unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T10:34:37Z: docs_stale\u00d714 + changelog_sparse owned (Unreleased empty post-2.1.32 cut); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); post-#306 NEWs (2103/2112) already queued; unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T10:41:55Z: docs_stale\u00d714 + changelog_sparse owned (Unreleased empty post-2.1.32 cut); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); post-#306 NEWs (2103/2112) already queued; unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T10:48:52Z: docs_stale\u00d714 + changelog_sparse owned (Unreleased empty post-2.1.32 cut); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); post-#306 NEWs (2103/2112) already queued; unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T10:56:05Z: docs_stale\u00d714 + changelog_sparse owned (Unreleased empty post-2.1.32 cut); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); post-#306 NEWs (2103/2112) already queued; unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T11:03:43Z: docs_stale\u00d714 + changelog_sparse owned (Unreleased empty post-2.1.32 cut); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); post-#306 NEWs (2103/2112) already queued; unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T11:11:46Z: docs_stale\u00d714 + changelog_sparse owned (Unreleased empty post-2.1.32 cut); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); post-#306 NEWs (2103/2112) already queued; unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T11:18:47Z: docs_stale\u00d714 + changelog_sparse owned (Unreleased empty post-2.1.32 cut); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); post-#306 NEWs (2103/2112) already queued; unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T11:25:52Z: docs_stale\u00d714 + changelog_sparse owned (Unreleased empty post-2.1.32 cut); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); post-#306 NEWs (2103/2112) already queued; unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T11:40:04Z: docs_stale\u00d714 + changelog_sparse owned (Unreleased empty post-2.1.32 cut); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); post-#306 NEWs (2103/2112) already queued; unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T11:47:09Z: docs_stale\u00d714 + changelog_sparse owned (Unreleased empty post-2.1.32 cut); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); post-#306 NEWs (2103/2112) already queued; unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T11:54:42Z: docs_stale\u00d714 + changelog_sparse owned (Unreleased empty post-2.1.32 cut); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); post-#306 NEWs (2103/2112) already queued; unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T12:02:12Z: docs_stale\u00d714 + changelog_sparse owned (Unreleased empty post-2.1.32 cut); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); post-#306 NEWs (2103/2112) already queued; unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T12:09:11Z: docs_stale\u00d714 + changelog_sparse owned (Unreleased empty post-2.1.32 cut); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); post-#306 NEWs (2103/2112) already queued; unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T12:23:28Z: docs_stale\u00d714 + changelog_sparse owned (Unreleased empty post-2.1.32 cut); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); post-#306 NEWs (2103/2112) already queued; unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T12:30:18Z: docs_stale\u00d714 + changelog_sparse owned (Unreleased empty post-2.1.32 cut); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); post-#306 NEWs (2103/2112) already queued; unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T12:37:17Z: docs_stale\u00d714 + changelog_sparse owned (Unreleased empty post-2.1.32 cut); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); post-#306 NEWs (2103/2112) already queued; unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T12:51:17Z: docs_stale\u00d714 + changelog_sparse owned (Unreleased empty post-2.1.32 cut); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); post-#306 NEWs (2103/2112) already queued; unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T12:57:55Z: docs_stale\u00d714 + changelog_sparse owned (Unreleased empty post-2.1.32 cut); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); post-#306 NEWs (2103/2112) already queued; unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T13:12:19Z: docs_stale\u00d714 + changelog_sparse owned (Unreleased empty post-2.1.32 cut); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); post-#306 NEWs (2103/2112) already queued; unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T13:19:21Z: docs_stale\u00d714 + changelog_sparse owned (Unreleased empty post-2.1.32 cut); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); post-#306 NEWs (2103/2112) already queued; unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T13:40:30Z: docs_stale\u00d714 + changelog_sparse owned (Unreleased empty post-2.1.32 cut); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); post-#306 NEWs (2103/2112) already queued; unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T13:47:37Z: docs_stale\u00d714 + changelog_sparse owned (Unreleased empty post-2.1.32 cut); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); post-#306 NEWs (2103/2112) already queued; unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    {
+      "feat": 0,
+      "iso": "2026-07-25T13:54:46Z",
+      "new": 0,
+      "note": "stamp-only: owned docs_stale\u00d714 + changelog_sparse post-2.1.32; NEW=121; no new tasks"
+    },
+    {
+      "feat": 0,
+      "iso": "2026-07-25T14:01:51Z",
+      "new": 0,
+      "note": "stamp-only: owned docs_stale\u00d714 + changelog_sparse post-2.1.32; NEW=121; no new tasks"
+    },
+    {
+      "feat": 0,
+      "iso": "2026-07-25T14:08:51Z",
+      "new": 0,
+      "note": "stamp-only: owned docs_stale\u00d714 + changelog_sparse post-2.1.32; NEW=121; no new tasks"
+    },
+    {
+      "feat": 0,
+      "iso": "2026-07-25T14:15:50Z",
+      "new": 0,
+      "note": "stamp-only: owned docs_stale\u00d714 + changelog_sparse post-2.1.32; NEW=121; no new tasks"
+    },
+    {
+      "feat": 0,
+      "iso": "2026-07-25T14:22:45Z",
+      "new": 0,
+      "note": "stamp-only: owned docs_stale\u00d714 + changelog_sparse post-2.1.32; NEW=121; no new tasks"
+    },
+    {
+      "feat": 0,
+      "iso": "2026-07-25T14:30:04Z",
+      "new": 0,
+      "note": "stamp-only: owned docs_stale\u00d714 + changelog_sparse post-2.1.32; NEW=121; no new tasks"
+    },
+    {
+      "feat": 0,
+      "iso": "2026-07-25T14:36:59Z",
+      "new": 0,
+      "note": "stamp-only: owned docs_stale\u00d714 + changelog_sparse post-2.1.32; NEW=121; no new tasks"
+    },
+    {
+      "feat": 0,
+      "iso": "2026-07-25T14:43:55Z",
+      "new": 0,
+      "note": "stamp-only: owned docs_stale\u00d714 + changelog_sparse post-2.1.32; NEW=121; no new tasks"
+    },
+    {
+      "feat": 0,
+      "iso": "2026-07-25T14:50:56Z",
+      "new": 0,
+      "note": "stamp-only: owned docs_stale\u00d714 + changelog_sparse post-2.1.32; NEW=121; no new tasks"
+    },
+    {
+      "feat": 0,
+      "iso": "2026-07-25T14:57:58Z",
+      "new": 0,
+      "note": "stamp-only: owned docs_stale\u00d714 + changelog_sparse post-2.1.32; NEW=121; no new tasks"
+    },
+    {
+      "feat": 0,
+      "iso": "2026-07-25T15:05:00Z",
+      "new": 0,
+      "note": "stamp-only: owned docs_stale\u00d714 + changelog_sparse post-2.1.32; NEW=121; no new tasks"
+    },
+    {
+      "feat": 0,
+      "iso": "2026-07-25T15:12:00Z",
+      "new": 0,
+      "note": "stamp-only: owned docs_stale\u00d714 + changelog_sparse post-2.1.32; NEW=121; no new tasks"
+    },
+    {
+      "feat": 0,
+      "iso": "2026-07-25T15:34:29Z",
+      "new": 0,
+      "note": "stamp-only: owned docs_stale\u00d713 + changelog_sparse post-2.1.33; NEW=121; #307 CLOSED; no new tasks"
+    },
+    "2026-07-25T16:00:25Z: docs_stale\u00d713 + changelog_sparse owned (Unreleased empty post-2.1.33 cut); demo_tables_check=ok; NEW backlog=121; FEAT-309 owns #309; stamp-only rule queued (2014); unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T16:22:37Z: docs_stale\u00d713 owned; Unreleased=2 (no changelog_sparse); demo_tables_check=ok; NEW backlog=121; FEAT-310 from 001; stamp-only rule queued (2014); unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T16:34:27Z: docs_stale\u00d713 owned; Unreleased=3 (no changelog_sparse); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    "2026-07-25T16:41:32Z: docs_stale\u00d713 owned; Unreleased=3 (no changelog_sparse); demo_tables_check=ok; NEW backlog=121; stamp-only rule queued (2014); unqueued stale docs=0; queued 0 FEAT + 0 NEW (no task spam)",
+    {
+      "feat": 0,
+      "iso": "2026-07-25T16:49:24Z",
+      "new": 0,
+      "note": "stamp-only: owned docs_stale\u00d713; Unreleased=3; NEW=121; no new tasks"
+    },
+    {
+      "feat": 0,
+      "iso": "2026-07-25T16:56:43Z",
+      "new": 0,
+      "note": "stamp-only: owned docs_stale\u00d713; Unreleased=3; NEW=121; no new tasks"
+    },
+    {
+      "feat": 0,
+      "iso": "2026-07-25T17:03:55Z",
+      "new": 0,
+      "note": "stamp-only: owned docs_stale\u00d713; Unreleased=3; NEW=121; no new tasks"
+    },
+    {
+      "feat": 0,
+      "iso": "2026-07-25T17:10:44Z",
+      "new": 0,
+      "note": "stamp-only: owned docs_stale\u00d713; Unreleased=3; NEW=121; no new tasks"
+    },
+    {
+      "feat": 0,
+      "iso": "2026-07-25T17:17:56Z",
+      "new": 0,
+      "note": "stamp-only: owned docs_stale\u00d713; Unreleased=3; NEW=121; no new tasks"
+    },
+    {
+      "feat": 0,
+      "iso": "2026-07-25T17:25:11Z",
+      "new": 0,
+      "note": "stamp-only: owned docs_stale\u00d713; Unreleased=3; NEW=121; no new tasks"
+    },
+    {
+      "feat": 0,
+      "iso": "2026-07-25T17:34:01Z",
+      "new": 0,
+      "note": "stamp-only: owned docs_stale\u00d713; Unreleased=3; NEW=121; no new tasks"
+    },
+    {
+      "feat": 0,
+      "iso": "2026-07-25T17:40:48Z",
+      "new": 0,
+      "note": "stamp-only: owned docs_stale\u00d713; Unreleased=3; NEW=121; no new tasks"
+    },
+    {
+      "feat": 0,
+      "iso": "2026-07-25T17:47:55Z",
+      "new": 0,
+      "note": "stamp-only: owned docs_stale\u00d713; Unreleased=3; NEW=121; no new tasks"
+    },
+    {
+      "feat": 0,
+      "iso": "2026-07-25T17:55:19Z",
+      "new": 0,
+      "note": "stamp-only: owned docs_stale\u00d713; Unreleased=3; NEW=121; no new tasks"
+    },
+    {
+      "feat": 0,
+      "iso": "2026-07-25T18:02:18Z",
+      "new": 0,
+      "note": "stamp-only: owned docs_stale\u00d713; Unreleased=3; NEW=121; no new tasks"
+    },
+    {
+      "feat": 0,
+      "iso": "2026-07-25T18:16:21Z",
+      "new": 0,
+      "note": "stamp-only: owned docs_stale\u00d713; Unreleased=3; NEW=121; no new tasks"
+    },
+    {
+      "feat": 0,
+      "iso": "2026-07-25T18:23:36Z",
+      "new": 0,
+      "note": "stamp-only: owned docs_stale\u00d713; Unreleased=3; NEW=121; no new tasks"
+    },
+    {
+      "feat": 0,
+      "iso": "2026-08-12T00:05:21Z",
+      "new": 1,
+      "note": "changelog_sparse false positive post-2.1.147 (empty Unreleased, 0 commits after version date); queued NEW-0-20260812-0005 preflight suppress; demo ok; weekly_due=no; NEW backlog=0"
+    }
+  ],
+  "g008_signals": 1,
+  "last_agent_iso": "2026-08-12T00:05:21Z",
+  "last_agent_run_iso": "2026-08-12T00:05:21Z",
+  "last_run": "2026-08-26T10:00:08Z",
+  "last_signals": 0,
+  "new_created": 1
+}

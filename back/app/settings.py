@@ -1,0 +1,361 @@
+from pathlib import Path
+
+from pydantic import Field, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+_SETTINGS_FILE = Path(__file__).resolve()
+# Host layout: repo/back/app/settings.py → parents[2] is repo root (config.env).
+# Docker layout: /app/app/settings.py with ./config.env mounted at /app/config.env → parents[1].
+_PROJECT_ROOT = _SETTINGS_FILE.parents[2]
+_ENV_ROOT_CANDIDATES = (_SETTINGS_FILE.parents[2], _SETTINGS_FILE.parents[1])
+
+# Only use absolute paths so loading works regardless of CWD (e.g. uvicorn reload subprocess).
+# Include only paths that exist to avoid FileNotFoundError when a path is missing.
+_ENV_FILE_PATHS: list[Path] = []
+for _root in _ENV_ROOT_CANDIDATES:
+    for _name in ("config.env", ".env"):
+        _p = _root / _name
+        if _p.exists() and _p not in _ENV_FILE_PATHS:
+            _ENV_FILE_PATHS.append(_p)
+
+
+class Settings(BaseSettings):
+    """
+    App configuration.
+
+    This project uses `config.env` (non-dot env file) because some environments
+    block creating `.env*` files. If you do have a `.env`, it will also be read.
+    """
+
+    model_config = SettingsConfigDict(
+        env_file=_ENV_FILE_PATHS if _ENV_FILE_PATHS else None,
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    db_host: str = Field(default="localhost", validation_alias="DB_HOST")
+    db_port: int = Field(default=5432, validation_alias="DB_PORT")
+    db_user: str = Field(default="pos", validation_alias="DB_USER")
+    db_password: str = Field(default="pos", validation_alias="DB_PASSWORD")
+    db_name: str = Field(default="pos", validation_alias="DB_NAME")
+
+    secret_key: str = Field(
+        default="CHANGE_THIS_IN_PRODUCTION", validation_alias="SECRET_KEY"
+    )
+    algorithm: str = Field(default="HS256", validation_alias="ALGORITHM")
+    access_token_expire_minutes: int = Field(
+        default=30, validation_alias="ACCESS_TOKEN_EXPIRE_MINUTES"
+    )
+
+    # Refresh token settings (separate secret for security)
+    refresh_secret_key: str = Field(
+        default="CHANGE_THIS_REFRESH_SECRET_IN_PRODUCTION",
+        validation_alias="REFRESH_SECRET_KEY",
+    )
+    refresh_token_expire_days: int = Field(
+        default=7, validation_alias="REFRESH_TOKEN_EXPIRE_DAYS"
+    )
+
+    stripe_secret_key: str = Field(default="", validation_alias="STRIPE_SECRET_KEY")
+    stripe_publishable_key: str = Field(
+        default="", validation_alias="STRIPE_PUBLISHABLE_KEY"
+    )
+    stripe_currency: str = Field(default="eur", validation_alias="STRIPE_CURRENCY")
+
+    # Platform SaaS paywall (restaurant signup monetization — not guest order Stripe keys)
+    saas_paywall_enabled: bool = Field(
+        default=False,
+        validation_alias="SAAS_PAYWALL_ENABLED",
+        description="When true, new tenants must start a trial or paid plan before staff app access",
+    )
+    saas_trial_days: int = Field(default=14, validation_alias="SAAS_TRIAL_DAYS")
+    saas_plan_price_cents: int = Field(
+        default=4900,
+        validation_alias="SAAS_PLAN_PRICE_CENTS",
+        description="Displayed monthly plan price in cents (e.g. 4900 = €49)",
+    )
+    saas_plan_currency: str = Field(default="eur", validation_alias="SAAS_PLAN_CURRENCY")
+    saas_stripe_price_id: str = Field(
+        default="",
+        validation_alias="SAAS_STRIPE_PRICE_ID",
+        description="Stripe Price ID for platform subscription Checkout (optional; trial works without it)",
+    )
+    saas_stripe_webhook_secret: str = Field(
+        default="",
+        validation_alias="SAAS_STRIPE_WEBHOOK_SECRET",
+        description="Stripe webhook signing secret for platform SaaS subscription events (whsec_...)",
+    )
+
+    # Revolut Merchant API (optional global fallback; tenants can set per-tenant key)
+    revolut_merchant_secret: str = Field(
+        default="", validation_alias="REVOLUT_MERCHANT_SECRET"
+    )
+
+    # CORS configuration
+    cors_origins: str = Field(
+        default="http://localhost:4200", validation_alias="CORS_ORIGINS"
+    )
+    
+    # Email configuration
+    smtp_host: str = Field(default="smtp.gmail.com", validation_alias="SMTP_HOST")
+    smtp_port: int = Field(default=587, validation_alias="SMTP_PORT")
+    smtp_user: str = Field(default="", validation_alias="SMTP_USER")
+    smtp_password: str = Field(default="", validation_alias="SMTP_PASSWORD")
+    smtp_use_tls: bool = Field(default=True, validation_alias="SMTP_USE_TLS")
+    email_from: str = Field(
+        default="noreply@satisfecho.de",
+        validation_alias="EMAIL_FROM",
+        description="From address when tenant has none; use a domain you control (not example.com).",
+    )
+    email_from_name: str = Field(default="POS2 System", validation_alias="EMAIL_FROM_NAME")
+
+    # WhatsApp (Twilio) – optional; when set, reminders can be sent via WhatsApp when customer_phone is present
+    twilio_account_sid: str = Field(default="", validation_alias="TWILIO_ACCOUNT_SID")
+    twilio_auth_token: str = Field(default="", validation_alias="TWILIO_AUTH_TOKEN")
+    twilio_whatsapp_from: str = Field(
+        default="",
+        validation_alias="TWILIO_WHATSAPP_FROM",
+        description="E.g. +14155238886 (Twilio sandbox) or your WhatsApp Business number",
+    )
+    default_phone_country: str = Field(
+        default="ES",
+        validation_alias="DEFAULT_PHONE_COUNTRY",
+        description="ISO 3166-1 alpha-2 country code for normalizing phone numbers without + prefix",
+    )
+    # Base URL of the public frontend (for links in emails, e.g. reservation view/change/cancel).
+    # When set, reservation reminder emails include a link to /reservation?token=...
+    public_app_base_url: str = Field(
+        default="",
+        validation_alias="PUBLIC_APP_BASE_URL",
+        description="e.g. https://satisfecho.de or http://127.0.0.1:4202 — required for password-reset and reservation email links; if empty, POST /password-reset/request returns 503",
+    )
+
+    # Product-wide legal URLs when a tenant has not set its own (landing, auth pages).
+    public_terms_of_service_url: str = Field(
+        default="",
+        validation_alias="PUBLIC_TERMS_OF_SERVICE_URL",
+        description="https://… terms of service; optional. If empty, /public/legal-urls falls back to PUBLIC_APP_BASE_URL + /terms when base is set.",
+    )
+    public_privacy_policy_url: str = Field(
+        default="",
+        validation_alias="PUBLIC_PRIVACY_POLICY_URL",
+        description="https://… privacy policy; optional. If empty, legal-urls falls back to PUBLIC_APP_BASE_URL + /privacy when base is set.",
+    )
+
+    # Password reset links in email point to {PUBLIC_APP_BASE_URL}/reset-password?token=...
+    password_reset_token_expire_minutes: int = Field(
+        default=60,
+        validation_alias="PASSWORD_RESET_TOKEN_EXPIRE_MINUTES",
+    )
+
+    # Meta (Facebook / Instagram marketing OAuth + Graph API)
+    meta_app_id: str = Field(default="", validation_alias="META_APP_ID")
+    meta_app_secret: str = Field(default="", validation_alias="META_APP_SECRET")
+    meta_graph_version: str = Field(default="v21.0", validation_alias="META_GRAPH_VERSION")
+    meta_oauth_redirect_uri: str = Field(
+        default="",
+        validation_alias="META_OAUTH_REDIRECT_URI",
+        description="Optional full OAuth redirect URL; if empty, derived from PUBLIC_APP_BASE_URL + ROOT_PATH.",
+    )
+
+    # Optional vision API for menu photo → product bulk import (Products page)
+    product_vision_api_key: str = Field(default="", validation_alias="PRODUCT_VISION_API_KEY")
+    product_vision_api_url: str = Field(
+        default="https://api.openai.com/v1/chat/completions",
+        validation_alias="PRODUCT_VISION_API_URL",
+    )
+    product_vision_model: str = Field(default="gpt-4o-mini", validation_alias="PRODUCT_VISION_MODEL")
+
+    # Production mode (enables secure cookies, stricter CORS, etc.)
+    is_production: bool = Field(default=False, validation_alias="PRODUCTION")
+
+    # When behind a reverse proxy that mounts the API at a subpath (e.g. /api), set this so
+    # OpenAPI docs and spec URLs are correct (e.g. /api/docs, /api/openapi.json).
+    root_path: str = Field(default="", validation_alias="ROOT_PATH")
+
+    # Rate limiting (see ROADMAP.md / satisfecho/pos ROADMAP)
+    rate_limit_enabled: bool = Field(default=True, validation_alias="RATE_LIMIT_ENABLED")
+    rate_limit_redis_url: str = Field(
+        default="", validation_alias="RATE_LIMIT_REDIS_URL"
+    )  # Empty = use REDIS_URL
+    rate_limit_global_per_minute: int = Field(
+        default=100, validation_alias="RATE_LIMIT_GLOBAL_PER_MINUTE"
+    )
+    rate_limit_login_per_15min: int = Field(
+        default=5, validation_alias="RATE_LIMIT_LOGIN_PER_15MIN"
+    )
+    rate_limit_register_per_hour: int = Field(
+        default=3, validation_alias="RATE_LIMIT_REGISTER_PER_HOUR"
+    )
+    rate_limit_payment_per_minute: int = Field(
+        default=10, validation_alias="RATE_LIMIT_PAYMENT_PER_MINUTE"
+    )
+    rate_limit_public_menu_per_minute: int = Field(
+        default=30, validation_alias="RATE_LIMIT_PUBLIC_MENU_PER_MINUTE"
+    )
+    rate_limit_upload_per_hour: int = Field(
+        default=10, validation_alias="RATE_LIMIT_UPLOAD_PER_HOUR"
+    )
+    rate_limit_admin_per_minute: int = Field(
+        default=30, validation_alias="RATE_LIMIT_ADMIN_PER_MINUTE"
+    )
+    rate_limit_payment_per_order_per_hour: int = Field(
+        default=3, validation_alias="RATE_LIMIT_PAYMENT_PER_ORDER_PER_HOUR"
+    )
+    rate_limit_reservation_delay_per_hour: int = Field(
+        default=8,
+        validation_alias="RATE_LIMIT_RESERVATION_DELAY_PER_HOUR",
+        description="Max delay-notice submissions per IP per reservation per hour (public token flow)",
+    )
+    rate_limit_guest_feedback_per_hour: int = Field(
+        default=15,
+        validation_alias="RATE_LIMIT_GUEST_FEEDBACK_PER_HOUR",
+        description="Max guest feedback submissions per IP per hour (public form)",
+    )
+    rate_limit_loyalty_join_per_hour: int = Field(
+        default=20,
+        validation_alias="RATE_LIMIT_LOYALTY_JOIN_PER_HOUR",
+        description="Max loyalty join submissions per IP per hour (public form)",
+    )
+    rate_limit_waiting_list_per_hour: int = Field(
+        default=10,
+        validation_alias="RATE_LIMIT_WAITING_LIST_PER_HOUR",
+        description="Max waiting-list submissions per IP per hour (public form)",
+    )
+    rate_limit_password_reset_per_hour: int = Field(
+        default=5,
+        validation_alias="RATE_LIMIT_PASSWORD_RESET_PER_HOUR",
+        description="Max password-reset email requests per IP per hour",
+    )
+
+    # Club loyalty wallet (optional; see docs/0066-club-loyalty.md — PassKit / Google Wallet)
+    loyalty_apple_pass_type_id: str = Field(
+        default="", validation_alias="LOYALTY_APPLE_PASS_TYPE_ID"
+    )
+    loyalty_apple_team_id: str = Field(default="", validation_alias="LOYALTY_APPLE_TEAM_ID")
+    loyalty_apple_pass_cert_path: str = Field(
+        default="", validation_alias="LOYALTY_APPLE_PASS_CERT_PATH"
+    )
+    loyalty_apple_pass_key_path: str = Field(
+        default="", validation_alias="LOYALTY_APPLE_PASS_KEY_PATH"
+    )
+    loyalty_apple_wwdr_cert_path: str = Field(
+        default="", validation_alias="LOYALTY_APPLE_WWDR_CERT_PATH"
+    )
+    loyalty_google_issuer_id: str = Field(
+        default="", validation_alias="LOYALTY_GOOGLE_ISSUER_ID"
+    )
+    loyalty_google_service_account_json: str = Field(
+        default="",
+        validation_alias="LOYALTY_GOOGLE_SERVICE_ACCOUNT_JSON",
+        description="Path to Google service-account JSON (never commit real keys)",
+    )
+    # Optional APNs .p8 for PassKit push-update (HTTP/2). When empty, Apple pass still
+    # downloads/updates via web service; devices only learn of changes after a push or re-open.
+    loyalty_apple_apns_key_path: str = Field(
+        default="", validation_alias="LOYALTY_APPLE_APNS_KEY_PATH"
+    )
+    loyalty_apple_apns_key_id: str = Field(
+        default="", validation_alias="LOYALTY_APPLE_APNS_KEY_ID"
+    )
+    # Override PassKit webServiceURL base (must be https in production). Empty → derived from
+    # PUBLIC_APP_BASE_URL + ROOT_PATH + /public/passkit
+    loyalty_apple_web_service_base_url: str = Field(
+        default="", validation_alias="LOYALTY_APPLE_WEB_SERVICE_BASE_URL"
+    )
+
+    # VeriFactu / fiscal middleware (see docs/0065 + docs/0074)
+    fiscal_middleware_provider: str = Field(
+        default="generic",
+        validation_alias="FISCAL_MIDDLEWARE_PROVIDER",
+        description="mock | generic | fiskaly_sign_es (chosen primary: Fiskaly SIGN ES)",
+    )
+    fiscal_middleware_base_url: str = Field(
+        default="",
+        validation_alias="FISCAL_MIDDLEWARE_BASE_URL",
+        description="Optional middleware base URL override; empty uses Fiskaly defaults when provider=fiskaly_sign_es",
+    )
+    fiscal_middleware_api_key: str = Field(
+        default="",
+        validation_alias="FISCAL_MIDDLEWARE_API_KEY",
+        description="API key / bearer for fiscal middleware (never commit real values)",
+    )
+    fiscal_middleware_api_secret: str = Field(
+        default="",
+        validation_alias="FISCAL_MIDDLEWARE_API_SECRET",
+        description="API secret for Fiskaly SIGN ES auth (never commit real values)",
+    )
+    fiscal_fiskaly_client_id: str = Field(
+        default="",
+        validation_alias="FISCAL_FISKALY_CLIENT_ID",
+        description="Default Fiskaly SIGN ES client UUID when tenant credential unset",
+    )
+    fiscal_live_unlock: bool = Field(
+        default=False,
+        validation_alias="FISCAL_LIVE_UNLOCK",
+        description="When true and provider credentials ready, tenants may select fiscal_mode=live",
+    )
+
+    # German TSE / KassenSichV (see docs/0072 + docs/0074)
+    tse_provider: str = Field(
+        default="generic",
+        validation_alias="TSE_PROVIDER",
+        description="mock | generic | fiskaly_sign_de (chosen primary: Fiskaly SIGN DE)",
+    )
+    tse_provider_base_url: str = Field(
+        default="",
+        validation_alias="TSE_PROVIDER_BASE_URL",
+        description="Optional cloud TSE base URL override; empty uses Fiskaly defaults when provider=fiskaly_sign_de",
+    )
+    tse_provider_api_key: str = Field(
+        default="",
+        validation_alias="TSE_PROVIDER_API_KEY",
+        description="API key for cloud TSE provider (never commit real values)",
+    )
+    tse_provider_api_secret: str = Field(
+        default="",
+        validation_alias="TSE_PROVIDER_API_SECRET",
+        description="API secret for Fiskaly SIGN DE auth (never commit real values)",
+    )
+    tse_fiskaly_tss_id: str = Field(
+        default="",
+        validation_alias="TSE_FISKALY_TSS_ID",
+        description="Fiskaly SIGN DE TSS UUID (platform or shared TSS for MVP)",
+    )
+    tse_live_unlock: bool = Field(
+        default=False,
+        validation_alias="TSE_LIVE_UNLOCK",
+        description="When true and provider credentials ready, tenants may select tse_mode=live",
+    )
+
+    @model_validator(mode="after")
+    def _relax_rate_limits_in_dev(self) -> "Settings":
+        """Use higher rate limits when not in production so DEV is less restrictive."""
+        if not self.is_production:
+            self.rate_limit_global_per_minute = 2000
+            self.rate_limit_login_per_15min = 100
+            self.rate_limit_register_per_hour = 100
+            self.rate_limit_payment_per_minute = 200
+            self.rate_limit_public_menu_per_minute = 500
+            self.rate_limit_upload_per_hour = 500
+            self.rate_limit_admin_per_minute = 500
+            self.rate_limit_payment_per_order_per_hour = 100
+            self.rate_limit_reservation_delay_per_hour = 200
+            self.rate_limit_guest_feedback_per_hour = 200
+            self.rate_limit_loyalty_join_per_hour = 200
+            self.rate_limit_waiting_list_per_hour = 200
+            self.rate_limit_password_reset_per_hour = 100
+        return self
+
+    @property
+    def database_url(self) -> str:
+        # SQLModel uses SQLAlchemy under the hood; this uses the psycopg driver (v3).
+        # If you prefer psycopg2, change to: postgresql://user:pass@host:port/db
+        return (
+            f"postgresql+psycopg://{self.db_user}:{self.db_password}"
+            f"@{self.db_host}:{self.db_port}/{self.db_name}"
+        )
+
+
+settings = Settings()
