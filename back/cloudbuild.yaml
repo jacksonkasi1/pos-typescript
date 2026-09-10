@@ -1,0 +1,42 @@
+steps:
+  # 1. Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/pos-backend:$COMMIT_SHA', '-t', 'gcr.io/$PROJECT_ID/pos-backend:latest', '.']
+    dir: 'back'
+
+  # 2. Push image to Google Container Registry (GCR)
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/pos-backend:$COMMIT_SHA']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/pos-backend:latest']
+
+  # 3. Deploy to Cloud Run (Serverless)
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'pos-backend'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/pos-backend:$COMMIT_SHA'
+      - '--region'
+      - 'asia-southeast1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--min-instances'
+      - '0'
+      - '--max-instances'
+      - '10'
+      - '--memory'
+      - '512Mi'
+      - '--cpu'
+      - '1'
+
+images:
+  - 'gcr.io/$PROJECT_ID/pos-backend:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/pos-backend:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
