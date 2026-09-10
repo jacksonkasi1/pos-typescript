@@ -1,19 +1,23 @@
-FROM python:3.12-slim
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy requirements first for better caching
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY package*.json ./
+RUN npm ci || npm install
 
-# Copy application code
 COPY . .
+RUN npm run build
 
-# Create upload directories (volume mount target)
-RUN mkdir -p /app/uploads/providers
+FROM node:20-alpine AS runner
 
-# Expose port
-EXPOSE 8020
+WORKDIR /app
+ENV NODE_ENV=production
 
-# Run uvicorn
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8020", "--reload"]
+COPY package*.json ./
+RUN npm ci --omit=dev || npm install --omit=dev
+
+COPY --from=builder /app/dist ./dist
+
+EXPOSE 3000
+
+CMD ["node", "dist/index.js"]
